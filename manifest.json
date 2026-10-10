@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "Import IBKR transactions via CSV files or Flex Query API with automatic multi-currency account creation",
   "author": "Nikolai Trukhin",
-  "sdkVersion": "2.0.0",
+  "sdkVersion": "3.9.0",
   "main": "dist/addon.js",
   "enabled": true,
   "permissions": [
@@ -30,22 +30,22 @@
       "category": "activities",
       "functions": [
         {
-          "name": "import",
+          "name": "getAll",
           "isDeclared": true,
           "isDetected": false,
           "detectedAt": null
         },
         {
-          "name": "checkImport",
+          "name": "import",
           "isDeclared": true,
           "isDetected": false,
           "detectedAt": null
         }
       ],
-      "purpose": "Import transactions from IBKR CSV files or Flex Query API"
+      "purpose": "Import transactions from IBKR CSV files or Flex Query API, and read existing activities for fingerprint deduplication"
     },
     {
-      "category": "assets",
+      "category": "market-data",
       "functions": [
         {
           "name": "searchTicker",
@@ -102,13 +102,25 @@
       "category": "events",
       "functions": [
         {
-          "name": "portfolio.onUpdateComplete",
+          "name": "onUpdateComplete",
           "isDeclared": true,
           "isDetected": false,
           "detectedAt": null
         }
       ],
       "purpose": "Trigger automatic Flex Query fetch on portfolio updates"
+    },
+    {
+      "category": "network",
+      "functions": [
+        {
+          "name": "request",
+          "isDeclared": true,
+          "isDetected": false,
+          "detectedAt": null
+        }
+      ],
+      "purpose": "Fetch IBKR Flex Query statements over HTTPS"
     },
     {
       "category": "logger",
@@ -145,7 +157,10 @@
   "repository": "https://github.com/CoolONEOfficial/wealthfolio-ibkr-addon",
   "bugs": "https://github.com/CoolONEOfficial/wealthfolio-ibkr-addon/issues",
   "license": "MIT",
-  "minWealthfolioVersion": "2.0.0",
+  "minWealthfolioVersion": "3.6.2",
+  "network": {
+    "allowedHosts": ["ndcdyn.interactivebrokers.com"]
+  },
   "keywords": ["ibkr", "interactive-brokers", "import", "multi-currency", "flex-query"],
   "icon": null
 }

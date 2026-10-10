@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import IBKRMultiImportPage from './pages/ibkr-multi-import-page';
 import IBKRFlexSettingsPage from './pages/ibkr-flex-settings-page';
 import { setHttpClient } from './lib/flex-query-fetcher';
+import { createNetworkHttpClient } from './lib/network-http-client';
 import {
   loadConfigsSafe,
   loadToken,
@@ -79,9 +80,11 @@ const queryClient = new QueryClient({
  * - Flex Query API integration for automatic fetching and importing
  */
 export function enable(ctx: AddonContext) {
-  // Initialize HTTP client for Flex Query API requests
-  if (ctx.api.http) {
-    setHttpClient(ctx.api.http);
+  // Initialize HTTP client for Flex Query API requests via the host network broker
+  if (ctx.api.network) {
+    setHttpClient(createNetworkHttpClient(ctx.api.network));
+  } else {
+    ctx.api.logger?.warn('IBKR addon: network API unavailable; Flex Query fetch disabled');
   }
 
   // Cleanup functions to call on disable
@@ -109,22 +112,24 @@ export function enable(ctx: AddonContext) {
 
   // Register the import page route
   ctx.router.add({
-    path: 'activities/import/ibkr-multi',
+    path: '/addons/ibkr-multi-import/activities/import',
     component: LazyImportPage,
+    title: 'IBKR Import',
   });
 
   // Register the settings page route
   ctx.router.add({
-    path: 'settings/ibkr-flex',
+    path: '/addons/ibkr-multi-import/settings/ibkr-flex',
     component: LazySettingsPage,
+    title: 'IBKR Settings',
   });
 
   // Add sidebar item for import
   const importSidebarHandle = ctx.sidebar.addItem({
     id: 'ibkr-multi-import',
     label: 'IBKR Import',
-    icon: 'Import',
-    route: '/activities/import/ibkr-multi',
+    icon: 'clipboard-text',
+    route: '/addons/ibkr-multi-import/activities/import',
     order: 150,
   });
   cleanupFunctions.push(() => importSidebarHandle.remove());
@@ -133,8 +138,8 @@ export function enable(ctx: AddonContext) {
   const settingsSidebarHandle = ctx.sidebar.addItem({
     id: 'ibkr-flex-settings',
     label: 'IBKR Settings',
-    icon: 'Settings',
-    route: '/settings/ibkr-flex',
+    icon: 'sliders',
+    route: '/addons/ibkr-multi-import/settings/ibkr-flex',
     order: 151,
   });
   cleanupFunctions.push(() => settingsSidebarHandle.remove());

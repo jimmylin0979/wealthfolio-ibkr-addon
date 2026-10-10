@@ -3,9 +3,10 @@ import type { Account, AddonContext, ActivityImport } from "@wealthfolio/addon-s
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { debug } from "../lib/debug-logger";
 import { getErrorMessage } from "../lib/shared-utils";
-import { detectCurrenciesFromIBKR } from "../lib/currency-detector";
+import { countTransactionsByCurrency, detectCurrenciesFromIBKR } from "../lib/currency-detector";
 import { generateAccountNames } from "../lib/account-name-generator";
 import { fetchFlexQuery, setHttpClient, validateFlexToken, validateQueryId } from "../lib/flex-query-fetcher";
+import { createNetworkHttpClient } from "../lib/network-http-client";
 import { parseFlexQueryCSV } from "../lib/flex-csv-parser";
 import {
   refreshAndUpdateAccountPreviews,
@@ -27,6 +28,16 @@ import type { AccountPreview, TransactionGroup, ImportResult, ProgressInfo } fro
 // Secret keys for stored credentials
 const SECRET_FLEX_TOKEN = "flex_token";
 const SECRET_QUERY_ID = "flex_query_id";
+
+/** Subset of the host's ImportActivitiesResult.summary used for reporting. */
+interface ImportSummary {
+  total?: number;
+  imported?: number;
+  skipped?: number;
+  duplicates?: number;
+  success?: boolean;
+  error_message?: string | null;
+}
 
 const STEPS = [
   { id: 1, title: "Source & Group" },
@@ -93,8 +104,8 @@ const IBKRMultiImportPage: React.FC<IBKRMultiImportPageProps> = ({ ctx }) => {
 
   // Initialize HTTP client
   useEffect(() => {
-    if (ctx?.api?.http) {
-      setHttpClient(ctx.api.http);
+    if (ctx?.api?.network) {
+      setHttpClient(createNetworkHttpClient(ctx.api.network));
     }
   }, [ctx]);
 
@@ -186,13 +197,7 @@ const IBKRMultiImportPage: React.FC<IBKRMultiImportPageProps> = ({ ctx }) => {
     const currencies = detectCurrenciesFromIBKR(data);
     const accountNames = generateAccountNames(groupName, currencies);
 
-    const transactionCounts = new Map<string, number>();
-    data.forEach((row) => {
-      const currency = row.CurrencyPrimary;
-      if (currency) {
-        transactionCounts.set(currency, (transactionCounts.get(currency) || 0) + 1);
-      }
-    });
+    const transactionCounts = countTransactionsByCurrency(data);
 
     const previews = accountNames.map((acc) => {
       const existingAccount = accounts.find(
@@ -261,6 +266,20 @@ const IBKRMultiImportPage: React.FC<IBKRMultiImportPageProps> = ({ ctx }) => {
         // Parse the fetched CSV
         setLoadingMessage("Parsing transactions...");
         const parsed = parseFlexQueryCSV(result.csv);
+
+        if (parsed.rows.length === 0) {
+          // Surface the real parse failure (e.g. XML payload from a
+          // non-CSV Flex query format, missing Trades section) instead
+          // of letting an empty row set show as "Detected 0 currency".
+          const detail =
+            parsed.errors.length > 0
+              ? parsed.errors.join("; ")
+              : "no data rows in the response";
+          throw new Error(
+            `Flex Query response could not be parsed as CSV (${detail}). ` +
+              `Check that the Flex Query format is CSV and includes the Trades section.`
+          );
+        }
 
         if (parsed.errors.length > 0) {
           debug.warn("Parse warnings:", parsed.errors);
@@ -569,8 +588,22 @@ const IBKRMultiImportPage: React.FC<IBKRMultiImportPageProps> = ({ ctx }) => {
 
             if (transactionsWithAccountId.length > 0) {
               try {
-                await ctx.api.activities.import(transactionsWithAccountId);
-                groupTotalImported += transactionsWithAccountId.length;
+                const result = await ctx.api.activities.import(transactionsWithAccountId);
+                // The host validates every row and silently skips the whole
+                // batch when any row is rejected, so the summary — not the input
+                // length — is the source of truth for what was persisted.
+                const summary = (result as { summary?: ImportSummary })?.summary;
+                const imported = summary?.imported ?? 0;
+                groupTotalImported += imported;
+                if (imported < transactionsWithAccountId.length) {
+                  const rejected = transactionsWithAccountId.length - imported;
+                  groupTotalFailed += rejected;
+                  groupErrors.push(
+                    `${txnCurrency}: host rejected ${rejected} of ${transactionsWithAccountId.length} activities` +
+                      (summary?.error_message ? ` (${summary.error_message})` : "") +
+                      (summary?.skipped ? ` — skipped: ${summary.skipped}` : "")
+                  );
+                }
               } catch (importError) {
                 groupTotalFailed += transactionsWithAccountId.length;
                 groupErrors.push(`Import failed for ${txnCurrency}: ${getErrorMessage(importError)}`);

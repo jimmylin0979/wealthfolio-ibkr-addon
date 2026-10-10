@@ -132,7 +132,7 @@ let httpClient: HttpClient | null = null;
 
 /**
  * Set the HTTP client to use for API requests
- * This should be called with ctx.api.http from the addon context
+ * This should be called with createNetworkHttpClient(ctx.api.network) from the addon context
  */
 export function setHttpClient(client: HttpClient): void {
   httpClient = client;
@@ -144,7 +144,7 @@ export function setHttpClient(client: HttpClient): void {
 function getHttpClient(): HttpClient {
   if (!httpClient) {
     throw new Error(
-      "HTTP client not set. Call setHttpClient(ctx.api.http) before using Flex Query functions."
+      "HTTP client not set. Call setHttpClient(createNetworkHttpClient(ctx.api.network)) before using Flex Query functions."
     );
   }
   return httpClient;
