@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectCurrenciesFromIBKR } from "../lib/currency-detector";
+import { countTransactionsByCurrency, detectCurrenciesFromIBKR } from "../lib/currency-detector";
 import type { CsvRowData } from "../presets/types";
 
 describe("Currency Detector", () => {
@@ -60,7 +60,7 @@ describe("Currency Detector", () => {
       expect(currencies).toEqual([]);
     });
 
-    it("should return empty array when no Currency rows exist", () => {
+    it("should derive from transaction rows when no Currency summary rows exist", () => {
       const rows: CsvRowData[] = [
         { LevelOfDetail: "Detail", CurrencyPrimary: "USD", lineNumber: "1" },
         { LevelOfDetail: "Summary", CurrencyPrimary: "EUR", lineNumber: "2" },
@@ -68,7 +68,28 @@ describe("Currency Detector", () => {
 
       const currencies = detectCurrenciesFromIBKR(rows);
 
-      expect(currencies).toEqual([]);
+      expect(currencies).toEqual(["EUR", "USD"]);
+    });
+
+    it("should derive from Flex rows that carry LevelOfDetail=EXECUTION", () => {
+      const rows: CsvRowData[] = [
+        {
+          LevelOfDetail: "EXECUTION",
+          CurrencyPrimary: "USD",
+          ListingExchange: "NASDAQ",
+          Symbol: "AAPL",
+          lineNumber: "1",
+        },
+        {
+          LevelOfDetail: "Detail",
+          CurrencyPrimary: "USD",
+          lineNumber: "2",
+        },
+      ];
+
+      const currencies = detectCurrenciesFromIBKR(rows);
+
+      expect(currencies).toEqual(["USD"]);
     });
 
     it("should trim whitespace from currency codes", () => {
@@ -173,6 +194,99 @@ describe("Currency Detector", () => {
 
       // Should treat USD and usd as different (case-sensitive)
       expect(currencies).toEqual(["USD", "usd"]);
+    });
+  });
+
+  describe("transaction-row fallback (Flex Query CSVs)", () => {
+    it("should derive currencies from rows with no LevelOfDetail when no summary rows exist", () => {
+      const rows: CsvRowData[] = [
+        { CurrencyPrimary: "USD", ListingExchange: "NASDAQ", Symbol: "AAPL", lineNumber: "1" },
+        { CurrencyPrimary: "USD", ListingExchange: "SEHK", Symbol: "0700", lineNumber: "2" },
+        { CurrencyPrimary: "USD", lineNumber: "3" }, // cash transaction, base currency only
+      ];
+
+      const currencies = detectCurrenciesFromIBKR(rows);
+
+      expect(currencies).toEqual(["HKD", "USD"]); // sorted, deduplicated
+    });
+
+    it("should contribute both FX pair halves for IDEALFX rows", () => {
+      const rows: CsvRowData[] = [
+        {
+          CurrencyPrimary: "USD",
+          Exchange: "IDEALFX",
+          Symbol: "HKD.USD",
+          lineNumber: "1",
+        },
+      ];
+
+      const currencies = detectCurrenciesFromIBKR(rows);
+
+      expect(currencies).toEqual(["HKD", "USD"]);
+    });
+
+    it("should NOT extract pair halves from ordinary dotted symbols like BRK.B", () => {
+      const rows: CsvRowData[] = [
+        {
+          CurrencyPrimary: "USD",
+          ListingExchange: "NYSE",
+          Symbol: "BRK.B",
+          lineNumber: "1",
+        },
+      ];
+
+      const currencies = detectCurrenciesFromIBKR(rows);
+
+      expect(currencies).toEqual(["USD"]); // no "BRK"
+    });
+
+    it("should prefer summary rows when they exist (primary path wins)", () => {
+      const rows: CsvRowData[] = [
+        { LevelOfDetail: "Currency", CurrencyPrimary: "USD", lineNumber: "1" },
+        { CurrencyPrimary: "CHF", ListingExchange: "SEHK", lineNumber: "2" }, // no LevelOfDetail
+      ];
+
+      const currencies = detectCurrenciesFromIBKR(rows);
+
+      expect(currencies).toEqual(["USD"]);
+    });
+
+    it("should exclude non-ISO-3 values like GBp from the fallback", () => {
+      const rows: CsvRowData[] = [
+        { CurrencyPrimary: "GBp", Symbol: "VOD", ListingExchange: "LSE", lineNumber: "1" },
+      ];
+
+      const currencies = detectCurrenciesFromIBKR(rows);
+
+      expect(currencies).toEqual(["GBP"]); // from LSE mapping, not "GBp"
+    });
+
+    it("should return empty array for empty input in fallback mode", () => {
+      expect(detectCurrenciesFromIBKR([])).toEqual([]);
+    });
+  });
+
+  describe("countTransactionsByCurrency", () => {
+    it("should count per mapped ListingExchange, else CurrencyPrimary", () => {
+      const rows: CsvRowData[] = [
+        { CurrencyPrimary: "USD", ListingExchange: "NASDAQ", lineNumber: "1" },
+        { CurrencyPrimary: "USD", ListingExchange: "SEHK", lineNumber: "2" },
+        { CurrencyPrimary: "USD", lineNumber: "3" },
+        { CurrencyPrimary: "EUR", lineNumber: "4" },
+        { lineNumber: "5" }, // neither → skipped
+        { CurrencyPrimary: "Currency", lineNumber: "6" }, // header → skipped
+      ];
+
+      const counts = countTransactionsByCurrency(rows);
+
+      expect(counts.get("USD")).toBe(2); // NASDAQ trade + base-currency cash row
+      expect(counts.get("HKD")).toBe(1); // SEHK trade
+      expect(counts.get("EUR")).toBe(1);
+      expect(counts.size).toBe(3);
+    });
+
+    it("should return an empty map for empty input", () => {
+      expect(countTransactionsByCurrency([]).size).toBe(0);
     });
   });
 });

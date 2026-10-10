@@ -1391,15 +1391,14 @@ describe('Currency Detector Edge Cases', () => {
     expect(result).toHaveLength(0);
   });
 
-  it('should handle data without Currency level rows', () => {
+  it('should derive from transaction rows when no Currency summary rows exist', () => {
     const data = [
       { LevelOfDetail: 'Detail', CurrencyPrimary: 'USD' },
       { LevelOfDetail: 'Summary', CurrencyPrimary: 'GBP' },
     ];
 
     const result = detectCurrenciesFromIBKR(data);
-    // Should not detect currencies from non-Currency level rows
-    expect(result).toHaveLength(0);
+    expect(result).toEqual(['GBP', 'USD']);
   });
 
   it('should handle missing CurrencyPrimary field', () => {
@@ -1437,14 +1436,13 @@ describe('Currency Detector Edge Cases', () => {
     expect(result[2]).toBe('USD');
   });
 
-  it('should handle lowercase level of detail', () => {
+  it('should derive USD from fallback when lowercase level of detail misses primary path', () => {
     const data = [
       { LevelOfDetail: 'currency', CurrencyPrimary: 'USD' },
     ];
 
     const result = detectCurrenciesFromIBKR(data);
-    // Should not match lowercase (exact match required)
-    expect(result).toHaveLength(0);
+    expect(result).toEqual(['USD']);
   });
 
   it('should preserve currency case as provided', () => {

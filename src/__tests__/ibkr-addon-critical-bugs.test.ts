@@ -157,10 +157,10 @@ describe('Date Format Handling', () => {
       const mockAccounts = [{ currency: 'USD', name: 'Test USD' }];
       const { activities } = await convertToActivityImports(rows, mockAccounts);
 
-      expect(activities[0].date).toBe('20240115');
+      expect(activities[0].date).toBe('2024-01-15');
     });
 
-    it('should handle datetime format (YYYY-MM-DD HH:MM:SS)', async () => {
+    it('should normalize datetime format (YYYY-MM-DD HH:MM:SS) to a bare ISO date', async () => {
       const rows = [
         { _IBKR_TYPE: 'IBKR_BUY', Symbol: 'AAPL', Quantity: '100', Date: '2024-01-15 10:30:00', TradePrice: '150', CurrencyPrimary: 'USD', ListingExchange: 'NASDAQ' },
       ];
@@ -168,7 +168,9 @@ describe('Date Format Handling', () => {
       const mockAccounts = [{ currency: 'USD', name: 'Test USD' }];
       const { activities } = await convertToActivityImports(rows, mockAccounts);
 
-      expect(activities[0].date).toBe('2024-01-15 10:30:00');
+      // The host requires a bare YYYY-MM-DD activity date; the IBKR time
+      // component (e.g. from the Cash Transactions "Date/Time" column) is stripped.
+      expect(activities[0].date).toBe('2024-01-15');
     });
   });
 

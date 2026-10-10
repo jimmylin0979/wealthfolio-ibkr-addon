@@ -297,13 +297,13 @@ describe('Currency Detection', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle no Currency level rows', () => {
+    it('should derive from transaction rows when no Currency level rows exist', () => {
       const rows = [
         { LevelOfDetail: 'DETAIL', CurrencyPrimary: 'USD' },
         { LevelOfDetail: 'DETAIL', CurrencyPrimary: 'EUR' },
       ];
       const currencies = detectCurrenciesFromIBKR(rows as any);
-      expect(currencies).toEqual([]);
+      expect(currencies).toEqual(['EUR', 'USD']);
     });
 
     it('should handle empty currency values', () => {
@@ -1296,11 +1296,13 @@ describe('Integration Scenarios', () => {
       }];
 
       const accountPreviews = [{ currency: 'USD', name: 'Test' }];
-      const { activities } = await convertToActivityImports(rows, accountPreviews);
+      const { activities, errors } = await convertToActivityImports(rows, accountPreviews);
 
-      // Should still create activity with whatever date value
-      expect(activities).toHaveLength(1);
-      expect(activities[0].date).toBe('invalid-date');
+      // An unparseable date must be reported as a conversion error rather than
+      // imported verbatim, matching the "missing date is never defaulted" invariant.
+      expect(activities).toHaveLength(0);
+      expect(errors).toHaveLength(1);
+      expect(errors[0].message).toMatch(/Missing date field/);
     });
   });
 
@@ -2235,7 +2237,7 @@ describe('Real-World Edge Cases', () => {
       const { activities } = await convertToActivityImports(rows, accountPreviews);
 
       expect(activities).toHaveLength(3);
-      expect(activities.reduce((sum, a) => sum + a.quantity, 0)).toBe(100);
+      expect(activities.reduce((sum, a) => sum + Number(a.quantity), 0)).toBe(100);
     });
   });
 

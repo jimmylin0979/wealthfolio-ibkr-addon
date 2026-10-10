@@ -33,10 +33,10 @@ function simulateDatabaseStorage(activity: ActivityImport): {
   activityDate: string;
   assetId: string;
   activityType: string;
-  quantity: number;
-  unitPrice: number;
-  amount: number;
-  fee: number;
+  quantity: number | string | null;
+  unitPrice: number | string | null;
+  amount: number | string | null;
+  fee: number | string | null;
   currency: string;
   comment?: string;
 } {
@@ -44,7 +44,7 @@ function simulateDatabaseStorage(activity: ActivityImport): {
 
   return {
     activityDate: typeof activity.date === "string" ? activity.date : activity.date?.toISOString() || "",
-    assetId: activity.symbol,
+    assetId: activity.symbol ?? "",
     activityType: activity.activityType,
     // Backend stores quantity and unitPrice as 0 for cash transactions
     quantity: isTrade ? (activity.quantity || 0) : 0,

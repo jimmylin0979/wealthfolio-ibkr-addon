@@ -6,6 +6,7 @@ import {
   getCurrencyFromCashSymbol,
   getErrorMessage,
   formatDateToISO,
+  normalizeActivityDate,
   validateCsvHeaders,
 } from "../lib/shared-utils";
 
@@ -270,5 +271,48 @@ describe("Shared Utils", () => {
         expect(validateCsvHeaders(headers)).toBe(true);
       });
     });
+  
+
+  describe("normalizeActivityDate", () => {
+    it("keeps a bare YYYY-MM-DD value unchanged", () => {
+      expect(normalizeActivityDate("2026-07-28")).toBe("2026-07-28");
+    });
+
+    it("strips the IBKR compact HHMMSS suffix from Date/Time", () => {
+      expect(normalizeActivityDate("2026-06-30 202000")).toBe("2026-06-30");
+    });
+
+    it("strips a colon-separated time", () => {
+      expect(normalizeActivityDate("2026-06-30 20:20:00")).toBe("2026-06-30");
+    });
+
+    it("strips an ISO T-separator time", () => {
+      expect(normalizeActivityDate("2026-06-30T10:48:48")).toBe("2026-06-30");
+    });
+
+    it("tolerates surrounding whitespace", () => {
+      expect(normalizeActivityDate("  2026-07-28  ")).toBe("2026-07-28");
+    });
+
+    it("formats a Date object as YYYY-MM-DD", () => {
+      expect(normalizeActivityDate(new Date("2024-03-15T10:30:00Z"))).toBe("2024-03-15");
+    });
+
+    it("returns empty string for missing values", () => {
+      expect(normalizeActivityDate(undefined)).toBe("");
+      expect(normalizeActivityDate(null)).toBe("");
+      expect(normalizeActivityDate("")).toBe("");
+    });
+
+    it("expands the compact YYYYMMDD form", () => {
+      expect(normalizeActivityDate("20260728")).toBe("2026-07-28");
+      expect(normalizeActivityDate("20260728 103000")).toBe("2026-07-28");
+    });
+
+    it("returns empty string for unparseable values so callers can reject them", () => {
+      expect(normalizeActivityDate("not-a-date")).toBe("");
+      expect(normalizeActivityDate("26-07-2026")).toBe("");
+    });
   });
+});
 });
