@@ -112,7 +112,11 @@ describe("Auto-Fetch Processor", () => {
       });
 
       const mockActivitiesApi = {
-        import: vi.fn().mockResolvedValue(undefined),
+        // Mirrors the host: import resolves with a summary whose `imported`
+        // count is what actually got persisted.
+        import: vi.fn().mockImplementation(async (acts: unknown[]) => ({
+          summary: { total: acts.length, imported: acts.length, skipped: 0, success: true },
+        })),
         getAll: vi.fn().mockResolvedValue([]),
       };
 
@@ -321,7 +325,11 @@ describe("Auto-Fetch Processor", () => {
       });
 
       const mockActivitiesApi = {
-        import: vi.fn().mockResolvedValue(undefined),
+        // Mirrors the host: import resolves with a summary whose `imported`
+        // count is what actually got persisted.
+        import: vi.fn().mockImplementation(async (acts: unknown[]) => ({
+          summary: { total: acts.length, imported: acts.length, skipped: 0, success: true },
+        })),
         getAll: vi.fn().mockResolvedValue([]),
       };
 
@@ -504,7 +512,9 @@ describe("Auto-Fetch Processor", () => {
           error: vi.fn(),
         },
         activities: {
-          import: vi.fn().mockResolvedValue(undefined),
+          import: vi.fn().mockImplementation(async (acts: unknown[]) => ({
+            summary: { total: acts.length, imported: acts.length, skipped: 0, success: true },
+          })),
           getAll: vi.fn().mockResolvedValue([]),
         },
         secrets: {

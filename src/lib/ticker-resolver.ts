@@ -33,6 +33,45 @@ export interface TickerResolutionResult {
   name?: string;
   alternatives?: string[];
   error?: string;
+  /** Price currency from the host symbol search; required by the host on import. */
+  quoteCcy?: string;
+  /** Asset kind from the host symbol search (EQUITY, ETF, CRYPTO, ...). */
+  instrumentType?: string;
+}
+
+/**
+ * Map a provider quote type onto the instrument types the host accepts on
+ * import (see the host's `parse_instrument_type`). Unknown kinds fall back to
+ * EQUITY because IBKR trades are stocks/ETFs unless proven otherwise.
+ */
+function normalizeInstrumentType(quoteType: unknown): string {
+  if (typeof quoteType !== "string" || quoteType.trim() === "") {
+    return "EQUITY";
+  }
+  const map: Record<string, string> = {
+    EQUITY: "EQUITY",
+    STOCK: "EQUITY",
+    ETF: "ETF",
+    MUTUALFUND: "MUTUALFUND",
+    INDEX: "INDEX",
+    CRYPTOCURRENCY: "CRYPTO",
+    CRYPTO: "CRYPTO",
+    CURRENCY: "FX",
+    FX: "FX",
+    BOND: "BOND",
+    FIXEDINCOME: "BOND",
+  };
+  return map[quoteType.trim().toUpperCase()] ?? "EQUITY";
+}
+
+function assetMetadataFromMatch(match: TickerSearchResult): {
+  quoteCcy?: string;
+  instrumentType: string;
+} {
+  const quoteCcy = typeof match.currency === "string" && match.currency.trim() !== ""
+    ? match.currency.trim()
+    : undefined;
+  return { quoteCcy, instrumentType: normalizeInstrumentType(match.quoteType) };
 }
 
 export interface TickerCacheEntry {
@@ -243,6 +282,7 @@ async function searchWealthfolioAPI(
             confidence: "high",
             source: "wealthfolio",
             name: compatibleMatch.name || compatibleMatch.symbol,
+            ...assetMetadataFromMatch(compatibleMatch),
           };
         } else {
           debug.log(`[Ticker Resolver] No compatible match for ${symbol} in ISIN search results, will try other methods`);
@@ -269,6 +309,7 @@ async function searchWealthfolioAPI(
             confidence: "high",
             source: "wealthfolio",
             name: compatibleMatch.name || compatibleMatch.symbol,
+            ...assetMetadataFromMatch(compatibleMatch),
           };
         } else {
           debug.log(`[Ticker Resolver] No compatible match for ${symbol} in CUSIP results`);
@@ -294,6 +335,7 @@ async function searchWealthfolioAPI(
             confidence: "high",
             source: "wealthfolio",
             name: compatibleMatch.name || compatibleMatch.symbol,
+            ...assetMetadataFromMatch(compatibleMatch),
           };
         } else {
           debug.log(`[Ticker Resolver] No compatible match for ${symbol} in FIGI results`);
@@ -326,6 +368,7 @@ async function searchWealthfolioAPI(
             confidence: "high",
             source: "wealthfolio",
             name: compatibleMatch.name || compatibleMatch.symbol,
+            ...assetMetadataFromMatch(compatibleMatch),
           };
         } else {
           debug.log(`[Ticker Resolver] No compatible match for ${symbol} in search results, will use fallback`);
@@ -352,6 +395,7 @@ async function searchWealthfolioAPI(
             confidence: "medium", // Lower confidence for description-based matches
             source: "wealthfolio",
             name: compatibleMatch.name || compatibleMatch.symbol,
+            ...assetMetadataFromMatch(compatibleMatch),
           };
         } else {
           debug.log(`[Ticker Resolver] No compatible match for ${symbol} in description results`);

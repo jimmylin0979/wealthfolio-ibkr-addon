@@ -219,6 +219,12 @@ export async function resolveTickersFromIBKR(
         resolved[i]._resolvedTicker = resolution.yahooTicker;
         resolved[i]._tickerConfidence = resolution.confidence;
         resolved[i]._tickerSource = resolution.source;
+        if (resolution.quoteCcy) {
+          resolved[i]._resolvedQuoteCcy = resolution.quoteCcy;
+        }
+        if (resolution.instrumentType) {
+          resolved[i]._resolvedInstrumentType = resolution.instrumentType;
+        }
       } else {
         // Fallback: use symbol with exchange suffix
         const suffixedSymbol = addExchangeSuffix(row.Symbol || "", exchange);

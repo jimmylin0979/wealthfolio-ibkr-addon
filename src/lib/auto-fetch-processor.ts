@@ -137,9 +137,23 @@ export async function importActivitiesToAccounts(
         totalSkipped += duplicatesSkipped;
 
         if (toImport.length > 0) {
-          await activitiesApi.import(toImport);
-          totalImported += toImport.length;
-          logger?.trace(`IBKR auto-fetch [${configName}]: Imported ${toImport.length} to ${account.name}`);
+          const importResult = (await activitiesApi.import(toImport)) as
+            | { summary?: { imported?: number; skipped?: number; error_message?: string | null } }
+            | undefined;
+          // Trust the host summary: it validates every row and can reject the
+          // whole batch, in which case toImport.length would overstate success.
+          const imported = importResult?.summary?.imported ?? 0;
+          totalImported += imported;
+          if (imported < toImport.length) {
+            const rejected = toImport.length - imported;
+            totalFailed += rejected;
+            logger?.error(
+              `IBKR auto-fetch [${configName}]: host rejected ${rejected}/${toImport.length} activities for ${account.name}` +
+                (importResult?.summary?.error_message ? ` (${importResult.summary.error_message})` : "")
+            );
+          } else {
+            logger?.trace(`IBKR auto-fetch [${configName}]: Imported ${imported} to ${account.name}`);
+          }
         }
 
         if (duplicatesSkipped > 0) {
