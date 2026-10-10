@@ -37,7 +37,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
     "@tanstack/react-query": "^5.90.5",
-    "@wealthfolio/addon-sdk": "^2.0.0",
+    "@wealthfolio/addon-sdk": "^3.9.0",
     "@wealthfolio/ui": "^2.0.0",
     "lucide-react": "^0.562.0",
     "motion": "^12.0.0",

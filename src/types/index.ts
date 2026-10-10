@@ -87,10 +87,10 @@ export interface ActivityFingerprint {
   activityDate: string;
   assetId: string;
   activityType: string;
-  quantity: number;
-  unitPrice: number;
-  amount?: number;
-  fee: number;
+  quantity: number | string | null;
+  unitPrice: number | string | null;
+  amount?: number | string | null;
+  fee: number | string | null;
   currency: string;
   comment?: string;
 }
@@ -175,6 +175,8 @@ export interface ProcessedIBKRRow {
   // Internal fields added by preprocessor
   _IBKR_TYPE?: string;
   _resolvedTicker?: string;
+  _resolvedQuoteCcy?: string;
+  _resolvedInstrumentType?: string;
 
   // Allow additional dynamic fields from CSV
   [key: string]: string | undefined;

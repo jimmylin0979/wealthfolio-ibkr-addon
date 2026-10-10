@@ -244,20 +244,21 @@ function parseFXTransaction(transaction: ActivityImport): {
   }
 
   // Source amount is the quantity (negative in IBKR for sales, we want absolute value)
-  const sourceAmount = Math.abs(transaction.quantity || 0);
+  const sourceAmount = Math.abs(Number(transaction.quantity) || 0);
 
   // Calculate target amount from exchange rate * source amount
   // In IBKR: TradePrice contains the exchange rate
   // Example: Selling 1 GBP at rate 1.26525 = 1.26525 USD received
   let targetAmount = 0;
-  if (transaction.unitPrice && sourceAmount) {
-    targetAmount = Math.abs(sourceAmount * transaction.unitPrice);
+  const unitPrice = Number(transaction.unitPrice) || 0;
+  if (unitPrice && sourceAmount) {
+    targetAmount = Math.abs(sourceAmount * unitPrice);
   }
 
   // Fallback: If we don't have unitPrice, use the amount field
   // (though in IBKR this is usually the net proceeds in base currency)
   if (targetAmount === 0) {
-    targetAmount = Math.abs(transaction.amount || 0);
+    targetAmount = Math.abs(Number(transaction.amount) || 0);
   }
 
   const comment = transaction.comment || `FX: ${sourceCurrency} → ${targetCurrency}`;
