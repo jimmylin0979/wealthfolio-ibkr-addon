@@ -36,7 +36,9 @@ describe("Flex Config Storage", () => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.spyOn(crypto, "randomUUID").mockReturnValue("test-uuid-123");
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "test-uuid-123" as `${string}-${string}-${string}-${string}-${string}`
+    );
   });
 
   afterEach(() => {
@@ -176,6 +178,26 @@ describe("Flex Config Storage", () => {
       expect(savedConfigs[0].id).toBe("existing-1");
       expect(savedConfigs[1].id).toBe("test-uuid-123");
     });
+
+    it("should throw and NOT save when loading existing configs fails", async () => {
+      const secrets = createMockSecretsAPI({
+        [SECRET_FLEX_CONFIGS]: JSON.stringify([
+          { id: "existing-1", name: "Existing", queryId: "1", accountGroup: "IBKR", autoFetchEnabled: false },
+        ]),
+      });
+      secrets.get.mockRejectedValue(new Error("keyring unavailable"));
+
+      await expect(
+        addConfig(secrets, {
+          name: "New",
+          queryId: "22222",
+          accountGroup: "IBKR",
+          autoFetchEnabled: true,
+        })
+      ).rejects.toThrow(/Failed to load existing configurations: keyring unavailable/);
+
+      expect(secrets.set).not.toHaveBeenCalled();
+    });
   });
 
   describe("updateConfig", () => {
@@ -229,6 +251,32 @@ describe("Flex Config Storage", () => {
       expect(savedConfigs[0].name).toBe("Updated First");
       expect(savedConfigs[1].name).toBe("Second");
     });
+
+    it("should throw and NOT save when loading existing configs fails", async () => {
+      const secrets = createMockSecretsAPI({
+        [SECRET_FLEX_CONFIGS]: JSON.stringify([
+          { id: "config-1", name: "Original", queryId: "12345", accountGroup: "IBKR", autoFetchEnabled: false },
+        ]),
+      });
+      secrets.get.mockRejectedValue(new Error("keyring unavailable"));
+
+      await expect(
+        updateConfig(secrets, "config-1", { name: "Updated" })
+      ).rejects.toThrow(/Failed to load existing configurations: keyring unavailable/);
+
+      expect(secrets.set).not.toHaveBeenCalled();
+    });
+
+    it("should still return null (not throw) when load succeeds but id is not found", async () => {
+      const secrets = createMockSecretsAPI({
+        [SECRET_FLEX_CONFIGS]: JSON.stringify([]),
+      });
+
+      const result = await updateConfig(secrets, "non-existent", { name: "Test" });
+
+      expect(result).toBeNull();
+      expect(secrets.set).not.toHaveBeenCalled();
+    });
   });
 
   describe("deleteConfig", () => {
@@ -277,6 +325,21 @@ describe("Flex Config Storage", () => {
       const savedConfigs = JSON.parse(savedCall[1]);
       expect(savedConfigs).toHaveLength(1);
       expect(savedConfigs[0].id).toBe("config-2");
+    });
+
+    it("should throw and NOT save when loading existing configs fails", async () => {
+      const secrets = createMockSecretsAPI({
+        [SECRET_FLEX_CONFIGS]: JSON.stringify([
+          { id: "config-1", name: "First", queryId: "111", accountGroup: "A", autoFetchEnabled: false },
+        ]),
+      });
+      secrets.get.mockRejectedValue(new Error("keyring unavailable"));
+
+      await expect(deleteConfig(secrets, "config-1")).rejects.toThrow(
+        /Failed to load existing configurations: keyring unavailable/
+      );
+
+      expect(secrets.set).not.toHaveBeenCalled();
     });
   });
 
@@ -385,6 +448,21 @@ describe("Flex Config Storage", () => {
       });
 
       expect(console.warn).toHaveBeenCalled();
+      expect(secrets.set).not.toHaveBeenCalled();
+    });
+
+    it("should throw and NOT save when loading existing configs fails", async () => {
+      const secrets = createMockSecretsAPI({
+        [SECRET_FLEX_CONFIGS]: JSON.stringify([
+          { id: "config-1", name: "Test", queryId: "12345", accountGroup: "IBKR", autoFetchEnabled: true },
+        ]),
+      });
+      secrets.get.mockRejectedValue(new Error("keyring unavailable"));
+
+      await expect(
+        updateConfigStatus(secrets, "config-1", { lastFetchStatus: "success" })
+      ).rejects.toThrow(/Failed to load existing configurations: keyring unavailable/);
+
       expect(secrets.set).not.toHaveBeenCalled();
     });
 

@@ -99,9 +99,26 @@ export async function loadConfigsSafe(secrets: SecretsAPI): Promise<LoadConfigsR
  * Load all Flex Query configurations from storage
  * @deprecated Use loadConfigsSafe() to properly handle errors
  * This function returns [] on error which is indistinguishable from "no configs"
+ * MUST NOT be used by write paths: saving the [] result on a read error would wipe
+ * every stored config. Use loadConfigsOrThrow() in write paths instead.
  */
 export async function loadConfigs(secrets: SecretsAPI): Promise<FlexQueryConfig[]> {
   const result = await loadConfigsSafe(secrets);
+  return result.configs ?? [];
+}
+
+/**
+ * Load configs for a read-modify-write operation, throwing on load failure.
+ * Write paths MUST use this: proceeding with `[]` after a read error would let
+ * saveConfigs clobber all stored configs.
+ */
+async function loadConfigsOrThrow(secrets: SecretsAPI): Promise<FlexQueryConfig[]> {
+  const result = await loadConfigsSafe(secrets);
+  if (!result.success) {
+    throw new Error(
+      `Failed to load existing configurations: ${result.error ?? "unknown error"}`
+    );
+  }
   return result.configs ?? [];
 }
 
@@ -118,13 +135,14 @@ export async function saveConfigs(
 /**
  * Add a new config
  * Uses a lock to prevent race conditions with concurrent modifications.
+ * Throws if existing configs cannot be loaded (never clobbers storage on read error).
  */
 export async function addConfig(
   secrets: SecretsAPI,
   config: Omit<FlexQueryConfig, "id">
 ): Promise<FlexQueryConfig> {
   return withLock(configLock, async () => {
-    const configs = await loadConfigs(secrets);
+    const configs = await loadConfigsOrThrow(secrets);
     const newConfig: FlexQueryConfig = {
       ...config,
       id: crypto.randomUUID(),
@@ -138,6 +156,7 @@ export async function addConfig(
 /**
  * Update an existing config
  * Uses a lock to prevent race conditions with concurrent modifications.
+ * Throws if existing configs cannot be loaded; returns null only when id is not found.
  */
 export async function updateConfig(
   secrets: SecretsAPI,
@@ -145,7 +164,7 @@ export async function updateConfig(
   updates: Partial<Omit<FlexQueryConfig, "id">>
 ): Promise<FlexQueryConfig | null> {
   return withLock(configLock, async () => {
-    const configs = await loadConfigs(secrets);
+    const configs = await loadConfigsOrThrow(secrets);
     const index = configs.findIndex((c) => c.id === id);
     if (index === -1) return null;
 
@@ -158,10 +177,11 @@ export async function updateConfig(
 /**
  * Delete a config by ID
  * Uses a lock to prevent race conditions with concurrent modifications.
+ * Throws if existing configs cannot be loaded; returns false only when id is not found.
  */
 export async function deleteConfig(secrets: SecretsAPI, id: string): Promise<boolean> {
   return withLock(configLock, async () => {
-    const configs = await loadConfigs(secrets);
+    const configs = await loadConfigsOrThrow(secrets);
     const filtered = configs.filter((c) => c.id !== id);
     if (filtered.length === configs.length) return false;
 
@@ -194,6 +214,7 @@ export async function deleteToken(secrets: SecretsAPI): Promise<void> {
 /**
  * Update config status with proper locking to prevent race conditions.
  * Uses a lock to ensure atomic read-modify-write operations.
+ * Throws if existing configs cannot be loaded; no-ops with a warn when id is not found.
  */
 export async function updateConfigStatus(
   secrets: SecretsAPI,
@@ -205,7 +226,7 @@ export async function updateConfigStatus(
   }
 ): Promise<void> {
   await withLock(configLock, async () => {
-    const configs = await loadConfigs(secrets);
+    const configs = await loadConfigsOrThrow(secrets);
     const index = configs.findIndex((c) => c.id === id);
     if (index === -1) {
       debug.warn(`[Flex Config] Cannot update status: config ${id} not found`);
