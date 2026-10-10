@@ -88,6 +88,42 @@ export function formatDateToISO(date: Date | string | undefined | null): string 
 }
 
 /**
+ * Normalize an IBKR date value to YYYY-MM-DD, dropping any time component
+ *
+ * Flex Query CSVs carry dates in two shapes: the Trades section has a bare
+ * `TradeDate` ("2026-07-28"), while the Cash Transactions section ships
+ * `Date/Time` as "2026-06-30 202000" (the splitter maps it onto `TradeDate`).
+ * A compact "20260728" form is also accepted. The suffixed forms are not valid
+ * activity dates, so they must be stripped before reaching `activities.import`.
+ *
+ * @param value - A Date object or IBKR date string
+ * @returns YYYY-MM-DD, or "" when the value is missing or unparseable
+ *
+ * @example
+ * normalizeActivityDate("2026-06-30 202000") // returns "2026-06-30"
+ * normalizeActivityDate("20260728") // returns "2026-07-28"
+ * normalizeActivityDate("2026-07-28") // returns "2026-07-28"
+ */
+export function normalizeActivityDate(value: Date | string | undefined | null): string {
+  if (!value) {
+    return "";
+  }
+  if (value instanceof Date) {
+    return value.toISOString().split("T")[0];
+  }
+  const trimmed = String(value).trim();
+  const dashed = /^(\d{4}-\d{2}-\d{2})/.exec(trimmed);
+  if (dashed) {
+    return dashed[1];
+  }
+  const compact = /^(\d{4})(\d{2})(\d{2})/.exec(trimmed);
+  if (compact) {
+    return `${compact[1]}-${compact[2]}-${compact[3]}`;
+  }
+  return "";
+}
+
+/**
  * Minimum number of columns required for valid CSV headers
  */
 const MIN_HEADER_COLUMNS = 3;

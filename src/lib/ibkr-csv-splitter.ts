@@ -100,11 +100,24 @@ function detectIBKRSections(csvContent: string): CsvSection[] {
  * Detect section type based on column structure (not position!)
  * IBKR can export sections in any order, so we identify by columns.
  */
-function detectSectionType(headers: string[]): 'trades' | 'dividends' | 'transfers' | 'unknown' {
+function detectSectionType(headers: string[]): 'trades' | 'dividends' | 'transfers' | 'statement-of-funds' | 'unknown' {
   const headerSet = new Set(headers.map(h => h.replace(/^"|"$/g, '')));
 
-  // Trades section: has TransactionType, Exchange, Buy/Sell columns
-  if (headerSet.has('TransactionType') && headerSet.has('Exchange') && headerSet.has('Buy/Sell')) {
+  // Statement of Funds: cash-basis SUMMARY of trades/dividends/deposits that
+  // also appear, in transaction form, in the Trades/Cash Transactions
+  // sections. Full statements carry LevelOfDetail on these rows (preprocessor
+  // Rule 0.5 skips them); Flex SoFs do not, so they must be dropped here or
+  // every dividend/deposit double-counts. Signature: ActivityCode +
+  // ActivityDescription + Debit/Credit (unique to this section).
+  if (headerSet.has('ActivityCode') && headerSet.has('ActivityDescription') && (headerSet.has('Debit') || headerSet.has('Credit'))) {
+    return 'statement-of-funds';
+  }
+
+  // Trades section: identified by Buy/Sell (unique to Trades among IBKR
+  // statement sections). Full statements also carry TransactionType/Exchange,
+  // but Flex Query configs may omit them (README's required field list does
+  // not include them) — requiring all three rejected valid Flex CSVs.
+  if (headerSet.has('Buy/Sell')) {
     return 'trades';
   }
 
@@ -125,7 +138,7 @@ function detectSectionType(headers: string[]): 'trades' | 'dividends' | 'transfe
  * Normalize column names across different IBKR sections
  * Maps section-specific column names to standard names used by trades section
  */
-function normalizeHeaders(headers: string[], sectionType: 'trades' | 'dividends' | 'transfers' | 'unknown'): string[] {
+function normalizeHeaders(headers: string[], sectionType: 'trades' | 'dividends' | 'transfers' | 'statement-of-funds' | 'unknown'): string[] {
   // Trades section: already has standard names, no changes needed
   if (sectionType === 'trades') {
     return headers;
@@ -211,6 +224,7 @@ export function extractTradesSection(csvContent: string): string {
   for (const section of sections) {
     const sectionHeaders = parseCSVLine(section.header);
     const sectionType = detectSectionType(sectionHeaders);
+    if (sectionType === 'statement-of-funds') continue;
     const normalizedHeaders = normalizeHeaders(sectionHeaders, sectionType);
 
     normalizedHeaders.forEach(header => {
@@ -233,6 +247,7 @@ export function extractTradesSection(csvContent: string): string {
   for (const section of sections) {
     const sectionHeaders = parseCSVLine(section.header);
     const sectionType = detectSectionType(sectionHeaders);
+    if (sectionType === 'statement-of-funds') continue;
     const normalizedHeaders = normalizeHeaders(sectionHeaders, sectionType);
 
     // For each data row in this section, map values to final header positions

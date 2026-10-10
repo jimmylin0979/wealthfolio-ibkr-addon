@@ -224,8 +224,11 @@ function classifyIBKRTransaction(row: IBKRTransactionRow): IBKRClassification {
     };
   }
 
-  // Rule 2: Stock trades (ExchTrade)
-  if (transactionType === "ExchTrade") {
+  // Rule 2: Stock trades
+  // Full statements mark trades with TransactionType="ExchTrade". Flex Query
+  // CSVs may omit TransactionType entirely (not in README's required fields);
+  // a Buy/Sell value with no TransactionType still identifies a trade row.
+  if (transactionType === "ExchTrade" || (!transactionType && (buySell === "BUY" || buySell === "SELL"))) {
     if (buySell === "BUY") {
       return {
         classification: "STOCK_BUY",

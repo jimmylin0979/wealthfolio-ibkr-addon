@@ -3,7 +3,7 @@ import { debug } from "./debug-logger";
 import { EXCHANGE_TO_CURRENCY } from "./exchange-utils";
 import type { AccountPreview, ProcessedIBKRRow, ConversionError, ConversionResult } from "../types";
 import { parseDividendInfo } from "./dividend-utils";
-import { getErrorMessage } from "./shared-utils";
+import { getErrorMessage, isCashSymbol, normalizeActivityDate } from "./shared-utils";
 import { MAX_FX_RATE } from "./constants";
 
 /**
@@ -11,7 +11,7 @@ import { MAX_FX_RATE } from "./constants";
  */
 const VALID_ACTIVITY_TYPES = new Set<ActivityType>([
   "BUY", "SELL", "DIVIDEND", "INTEREST", "DEPOSIT", "WITHDRAWAL",
-  "ADD_HOLDING", "REMOVE_HOLDING", "TRANSFER_IN", "TRANSFER_OUT",
+  "TRANSFER_IN", "TRANSFER_OUT",
   "FEE", "TAX", "SPLIT"
 ]);
 
@@ -106,7 +106,7 @@ function buildPositionHistory(processedData: ProcessedIBKRRow[]): Map<string, Po
 
     const quantity = parseNumeric(row.Quantity);
     const isBuy = row._IBKR_TYPE === "IBKR_BUY";
-    const date = row.Date || row.TradeDate || "";
+    const date = normalizeActivityDate(row.Date || row.TradeDate);
 
     // Update running position
     const prevPosition = currentPosition.get(symbol) || 0;
@@ -191,7 +191,7 @@ export function buildFXRateLookup(rawData: ProcessedIBKRRow[]): Map<string, FXRa
     // Skip invalid prices (sanity check for FX rates)
     if (tradePrice <= 0 || tradePrice > MAX_FX_RATE) continue;
 
-    const date = row.TradeDate || row.ReportDate || row.Date || "";
+    const date = normalizeActivityDate(row.TradeDate || row.ReportDate || row.Date);
     if (!date) continue;
 
     // Normalize date format (remove time portion if present)
@@ -435,7 +435,7 @@ export async function convertToActivityImports(
         //
         const activityDesc = row.ActivityDescription || "";
         const dividendInfo = parseDividendInfo(activityDesc);
-        const txDate = row.Date || row.ReportDate || row.TradeDate || "";
+        const txDate = normalizeActivityDate(row.Date || row.ReportDate || row.TradeDate);
         const symbol = (row.Symbol || "").toUpperCase();
 
         if (dividendInfo) {
@@ -492,7 +492,7 @@ export async function convertToActivityImports(
         //
         const activityDesc = row.ActivityDescription || row.Description || "";
         const dividendInfo = parseDividendInfo(activityDesc);
-        const txDate = row.Date || row.ReportDate || row.TradeDate || "";
+        const txDate = normalizeActivityDate(row.Date || row.ReportDate || row.TradeDate);
         const symbol = (row.Symbol || "").toUpperCase();
 
         if (dividendInfo) {
@@ -576,7 +576,7 @@ export async function convertToActivityImports(
           // TradeMoney is in base currency, but the fee should be in the security's trading currency
           const targetCurrency = EXCHANGE_TO_CURRENCY[row.ListingExchange];
           const tradeMoneyBase = Math.abs(parseNumeric(row.TradeMoney));
-          const txDate = row.Date || row.ReportDate || row.TradeDate || "";
+          const txDate = normalizeActivityDate(row.Date || row.ReportDate || row.TradeDate);
 
           // Try to convert using FX rate
           const fxRate = getFXRate(fxLookup, baseCurrency, targetCurrency, txDate);
@@ -612,7 +612,9 @@ export async function convertToActivityImports(
       const finalUnitPrice = isCashTransaction ? 1 : unitPrice;
 
       // Validate date - missing date should be an error, not silently defaulted
-      const activityDate = row.Date || row.ReportDate;
+      // Flex Query CSVs carry TradeDate (trades section, or Date/Time normalized
+      // to TradeDate by the splitter) but never a literal Date/ReportDate column.
+      const activityDate = normalizeActivityDate(row.Date || row.ReportDate || row.TradeDate);
       if (!activityDate) {
         errors.push({
           rowIndex,
@@ -623,10 +625,13 @@ export async function convertToActivityImports(
         continue;
       }
 
+      const activitySymbol = row._resolvedTicker || row.Symbol || row.SecurityID || `$CASH-${currency}`;
+      const isCashMovement = isCashSymbol(activitySymbol);
+
       const activity: ActivityImport = {
         accountId: "", // Will be set later when grouping by currency
         date: activityDate,
-        symbol: row._resolvedTicker || row.Symbol || row.SecurityID || `$CASH-${currency}`,
+        symbol: activitySymbol,
         activityType: activityType,
         quantity: finalQuantity,
         unitPrice: finalUnitPrice,
@@ -636,6 +641,15 @@ export async function convertToActivityImports(
         comment: row.ActivityDescription || row.Description || "",
         isDraft: false,
         isValid: true,
+        // The host rejects the WHOLE import batch when a symbol-bearing row
+        // lacks these two fields, so they must always be present for
+        // asset-backed rows (BUY/SELL/DIVIDEND with a real symbol).
+        ...(isCashMovement
+          ? {}
+          : {
+              quoteCcy: row._resolvedQuoteCcy || currency,
+              instrumentType: row._resolvedInstrumentType || "EQUITY",
+            }),
       };
 
       activities.push(activity);
