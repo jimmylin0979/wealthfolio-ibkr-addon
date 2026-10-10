@@ -14,6 +14,13 @@ import { debug } from "./debug-logger";
 /**
  * Normalize a numeric value for fingerprinting
  * Handles floating point precision issues by rounding to 6 decimal places
+ *
+ * The absolute value mirrors the host's `build_import_idempotency_key`, which
+ * fingerprints |quantity|, |unit_price|, |amount| and |fee|. Without this, a
+ * row stored with a sign that differs from the sign we submit (e.g. the host
+ * normalises a withdrawal's amount) hashes differently here than it does there,
+ * so our pre-filter misses a duplicate the host then refuses — turning an
+ * unchanged re-import into a bogus "all rows failed" run.
  */
 function normalizeNumber(value: number | string | null | undefined): string {
   const num = typeof value === "string" ? Number(value) : value;
@@ -21,7 +28,7 @@ function normalizeNumber(value: number | string | null | undefined): string {
     return "0.000000";
   }
   // Round to 6 decimal places to handle floating point precision issues
-  return Number(num).toFixed(6);
+  return Math.abs(Number(num)).toFixed(6);
 }
 
 /**

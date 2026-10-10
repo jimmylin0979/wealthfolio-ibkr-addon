@@ -77,6 +77,8 @@ export interface ImportResult {
   skipped: number;
   /** Error messages, if any */
   errors: string[];
+  /** Non-fatal remarks, e.g. rows the host recognised as already imported */
+  notes?: string[];
 }
 
 /**

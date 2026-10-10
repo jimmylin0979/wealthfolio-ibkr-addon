@@ -9,13 +9,16 @@ interface ImportResult {
   currency: string;
   success: number;
   failed: number;
+  skipped: number;
   errors: string[];
+  notes?: string[];
 }
 
 interface IBKRImportResultsStepProps {
   isImporting: boolean;
   importProgress?: { current: number; total: number; message?: string };
   results: ImportResult[];
+  preImportDuplicates?: number;
   onReset: () => void;
 }
 
@@ -23,12 +26,23 @@ export const IBKRImportResultsStep = ({
   isImporting,
   importProgress,
   results,
+  preImportDuplicates = 0,
   onReset,
 }: IBKRImportResultsStepProps) => {
   const totalSuccess = results.reduce((sum, r) => sum + r.success, 0);
   const totalFailed = results.reduce((sum, r) => sum + r.failed, 0);
+  const totalSkipped = results.reduce((sum, r) => sum + r.skipped, 0) + preImportDuplicates;
   const hasErrors = results.some((r) => r.errors.length > 0);
-  const allErrors = results.flatMap((r) => r.errors);
+
+  const summaryLine = [
+    `${totalSuccess} transaction${totalSuccess === 1 ? "" : "s"} imported`,
+    totalSkipped > 0
+      ? `${totalSkipped} already present (skipped)`
+      : null,
+    totalFailed > 0 ? `${totalFailed} failed` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <div className="flex flex-col gap-6">
@@ -40,7 +54,7 @@ export const IBKRImportResultsStep = ({
         <p className="text-muted-foreground text-sm">
           {isImporting
             ? "Please wait while transactions are being imported..."
-            : `Successfully imported ${totalSuccess} transaction${totalSuccess > 1 ? "s" : ""}${totalFailed > 0 ? ` (${totalFailed} failed)` : ""}`}
+            : summaryLine}
         </p>
       </div>
 
@@ -98,6 +112,12 @@ export const IBKRImportResultsStep = ({
                         <Icons.CheckCircle className="h-3 w-3 text-green-600" />
                         {result.success} imported
                       </span>
+                      {result.skipped > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Icons.Info className="h-3 w-3 text-muted-foreground" />
+                          {result.skipped} already present
+                        </span>
+                      )}
                       {result.failed > 0 && (
                         <span className="flex items-center gap-1">
                           <Icons.AlertCircle className="h-3 w-3 text-red-500" />
@@ -108,11 +128,22 @@ export const IBKRImportResultsStep = ({
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-semibold">
-                      {result.success + result.failed}
+                      {result.success + result.failed + result.skipped}
                     </p>
                     <p className="text-muted-foreground text-xs">total</p>
                   </div>
                 </div>
+
+                {/* Non-fatal remarks for this account */}
+                {(result.notes ?? []).length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {(result.notes ?? []).slice(0, 3).map((note, index) => (
+                      <p key={index} className="text-muted-foreground text-xs">
+                        • {note}
+                      </p>
+                    ))}
+                  </div>
+                )}
 
                 {/* Errors for this account */}
                 {result.errors.length > 0 && (
@@ -138,7 +169,7 @@ export const IBKRImportResultsStep = ({
       {/* Error Summary */}
       {!isImporting && hasErrors && (
         <ImportAlert variant="warning" title="Some Transactions Failed">
-          {allErrors.length} transaction{allErrors.length > 1 ? "s" : ""} could not be imported.
+          {totalFailed} transaction{totalFailed === 1 ? "" : "s"} could not be imported.
           Review the errors above for details.
         </ImportAlert>
       )}

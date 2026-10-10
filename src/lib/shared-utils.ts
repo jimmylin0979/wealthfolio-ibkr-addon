@@ -124,6 +124,58 @@ export function normalizeActivityDate(value: Date | string | undefined | null): 
 }
 
 /**
+ * Subset of the host's `ImportActivitiesResult.summary` that the addon relies on.
+ *
+ * The host counts a row as "skipped" for two very different reasons, and the
+ * addon must not conflate them:
+ *  - it is a **duplicate** of a row already stored (reported in `duplicates`),
+ *  - it was **rejected** by validation or by the writer policy (not reported in
+ *    `duplicates`).
+ *
+ * A re-import of an unchanged IBKR statement is entirely the first case: the
+ * host resolves successfully with `imported: 0`, `skipped: N`, `duplicates: N`
+ * and no error message, because every row is already in Wealthfolio. Treating
+ * that as a failure produces a red "N transactions failed" banner for a run
+ * that in fact lost no data.
+ */
+export interface HostImportSummary {
+  total?: number;
+  imported?: number;
+  skipped?: number;
+  duplicates?: number;
+  success?: boolean;
+  error_message?: string | null;
+}
+
+/** How an `activities.import` call actually turned out. */
+export interface HostImportAccounting {
+  imported: number;
+  duplicates: number;
+  failed: number;
+}
+
+/**
+ * Classify the host's import summary into imported / duplicates / failed.
+ *
+ * `skipped` alone is not a failure count: duplicates are a subset of it. The
+ * remainder (`submitted - imported - duplicates`) is what genuinely failed.
+ *
+ * @param summary - `result.summary` returned by `ctx.api.activities.import`
+ * @param submitted - Number of rows the addon sent in this batch
+ */
+export function accountHostImport(
+  summary: HostImportSummary | undefined,
+  submitted: number
+): HostImportAccounting {
+  const imported = summary?.imported ?? 0;
+  const skipped = summary?.skipped ?? 0;
+  // `duplicates` is a subset of `skipped`; clamp so a malformed summary cannot produce a negative count.
+  const duplicates = Math.min(Math.max(summary?.duplicates ?? 0, 0), skipped);
+  const failed = Math.max(submitted - imported - duplicates, 0);
+  return { imported, duplicates, failed };
+}
+
+/**
  * Minimum number of columns required for valid CSV headers
  */
 const MIN_HEADER_COLUMNS = 3;

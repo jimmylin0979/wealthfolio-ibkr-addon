@@ -2,7 +2,7 @@ import { Card, Page, PageContent, PageHeader } from "@wealthfolio/ui";
 import type { Account, AddonContext, ActivityImport } from "@wealthfolio/addon-sdk";
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { debug } from "../lib/debug-logger";
-import { getErrorMessage } from "../lib/shared-utils";
+import { getErrorMessage, accountHostImport } from "../lib/shared-utils";
 import { countTransactionsByCurrency, detectCurrenciesFromIBKR } from "../lib/currency-detector";
 import { generateAccountNames } from "../lib/account-name-generator";
 import { fetchFlexQuery, setHttpClient, validateFlexToken, validateQueryId } from "../lib/flex-query-fetcher";
@@ -84,6 +84,7 @@ const IBKRMultiImportPage: React.FC<IBKRMultiImportPageProps> = ({ ctx }) => {
   const [isResolving, setIsResolving] = useState(false);
   const [resolutionProgress, setResolutionProgress] = useState<ProgressInfo | undefined>();
   const [transactionGroups, setTransactionGroups] = useState<TransactionGroup[]>([]);
+  const [preImportDuplicates, setPreImportDuplicates] = useState(0);
 
   // Step 4 state
   const [isImporting, setIsImporting] = useState(false);
@@ -185,6 +186,7 @@ const IBKRMultiImportPage: React.FC<IBKRMultiImportPageProps> = ({ ctx }) => {
     setParsedData([]);
     setAccountPreviews([]);
     setTransactionGroups([]);
+    setPreImportDuplicates(0);
     setImportResults([]);
     setLoadingMessage("");
     setResolutionProgress(undefined);
@@ -422,6 +424,9 @@ const IBKRMultiImportPage: React.FC<IBKRMultiImportPageProps> = ({ ctx }) => {
     let dedupedActivities = activitiesWithFX;
     try {
       dedupedActivities = deduplicateActivities(activitiesWithFX, existingActivities);
+      if (isMountedRef.current) {
+        setPreImportDuplicates(activitiesWithFX.length - dedupedActivities.length);
+      }
     } catch (error) {
       const msg = `Deduplication failed, proceeding without: ${getErrorMessage(error)}`;
       debug.warn(msg);
@@ -552,7 +557,9 @@ const IBKRMultiImportPage: React.FC<IBKRMultiImportPageProps> = ({ ctx }) => {
         // Track totals for this group (including partial success)
         let groupTotalImported = 0;
         let groupTotalFailed = 0;
+        let groupTotalDuplicates = 0;
         const groupErrors: string[] = [];
+        const groupNotes: string[] = [];
 
         try {
           // Group transactions by their actual currency
@@ -589,19 +596,26 @@ const IBKRMultiImportPage: React.FC<IBKRMultiImportPageProps> = ({ ctx }) => {
             if (transactionsWithAccountId.length > 0) {
               try {
                 const result = await ctx.api.activities.import(transactionsWithAccountId);
-                // The host validates every row and silently skips the whole
-                // batch when any row is rejected, so the summary — not the input
-                // length — is the source of truth for what was persisted.
+                // The host validates every row and can skip the whole batch, so
+                // the summary — not the input length — is the source of truth for
+                // what was persisted.
                 const summary = (result as { summary?: ImportSummary })?.summary;
-                const imported = summary?.imported ?? 0;
+                const { imported, duplicates, failed } = accountHostImport(
+                  summary,
+                  transactionsWithAccountId.length
+                );
                 groupTotalImported += imported;
-                if (imported < transactionsWithAccountId.length) {
-                  const rejected = transactionsWithAccountId.length - imported;
-                  groupTotalFailed += rejected;
+                groupTotalDuplicates += duplicates;
+                groupTotalFailed += failed;
+                if (duplicates > 0) {
+                  groupNotes.push(
+                    `${txnCurrency}: ${duplicates} already imported (skipped as duplicates)`
+                  );
+                }
+                if (failed > 0) {
                   groupErrors.push(
-                    `${txnCurrency}: host rejected ${rejected} of ${transactionsWithAccountId.length} activities` +
-                      (summary?.error_message ? ` (${summary.error_message})` : "") +
-                      (summary?.skipped ? ` — skipped: ${summary.skipped}` : "")
+                    `${txnCurrency}: host rejected ${failed} of ${transactionsWithAccountId.length} activities` +
+                      (summary?.error_message ? ` (${summary.error_message})` : "")
                   );
                 }
               } catch (importError) {
@@ -617,8 +631,9 @@ const IBKRMultiImportPage: React.FC<IBKRMultiImportPageProps> = ({ ctx }) => {
             currency: group.currency,
             success: groupTotalImported,
             failed: groupTotalFailed,
-            skipped: 0, // Duplicates already removed in Step 3
+            skipped: groupTotalDuplicates,
             errors: groupErrors,
+            notes: groupNotes,
           });
         } catch (error) {
           const errorMessage = getErrorMessage(error);
@@ -628,9 +643,10 @@ const IBKRMultiImportPage: React.FC<IBKRMultiImportPageProps> = ({ ctx }) => {
             accountName: group.accountName,
             currency: group.currency,
             success: groupTotalImported, // Reflect partial success
-            failed: group.transactions.length - groupTotalImported,
-            skipped: 0,
+            failed: Math.max(group.transactions.length - groupTotalImported - groupTotalDuplicates, 0),
+            skipped: groupTotalDuplicates,
             errors: [...groupErrors, errorMessage],
+            notes: groupNotes,
           });
         }
       }
@@ -709,6 +725,7 @@ const IBKRMultiImportPage: React.FC<IBKRMultiImportPageProps> = ({ ctx }) => {
             isImporting={isImporting}
             importProgress={importProgress}
             results={importResults}
+            preImportDuplicates={preImportDuplicates}
             onReset={resetImportProcess}
           />
         );

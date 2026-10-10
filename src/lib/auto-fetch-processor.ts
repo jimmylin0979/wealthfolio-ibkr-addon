@@ -12,6 +12,8 @@ import { parseFlexQueryCSV } from "./flex-csv-parser";
 import { detectCurrenciesFromIBKR } from "./currency-detector";
 import { processAndResolveData } from "./import-orchestrator";
 import { deduplicateActivities } from "./activity-deduplicator";
+import { accountHostImport } from "./shared-utils";
+import type { HostImportSummary } from "./shared-utils";
 import {
   createActivityFingerprintGetter,
   createSuccessStatus,
@@ -138,17 +140,26 @@ export async function importActivitiesToAccounts(
 
         if (toImport.length > 0) {
           const importResult = (await activitiesApi.import(toImport)) as
-            | { summary?: { imported?: number; skipped?: number; error_message?: string | null } }
+            | { summary?: HostImportSummary }
             | undefined;
           // Trust the host summary: it validates every row and can reject the
           // whole batch, in which case toImport.length would overstate success.
-          const imported = importResult?.summary?.imported ?? 0;
+          // Rows it reports as duplicates are already stored, not failures.
+          const { imported, duplicates, failed } = accountHostImport(
+            importResult?.summary,
+            toImport.length
+          );
           totalImported += imported;
-          if (imported < toImport.length) {
-            const rejected = toImport.length - imported;
-            totalFailed += rejected;
+          totalSkipped += duplicates;
+          totalFailed += failed;
+          if (duplicates > 0) {
+            logger?.trace(
+              `IBKR auto-fetch [${configName}]: ${duplicates} already imported (skipped as duplicates) for ${account.name}`
+            );
+          }
+          if (failed > 0) {
             logger?.error(
-              `IBKR auto-fetch [${configName}]: host rejected ${rejected}/${toImport.length} activities for ${account.name}` +
+              `IBKR auto-fetch [${configName}]: host rejected ${failed}/${toImport.length} activities for ${account.name}` +
                 (importResult?.summary?.error_message ? ` (${importResult.summary.error_message})` : "")
             );
           } else {
