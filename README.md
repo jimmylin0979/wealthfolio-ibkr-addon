@@ -66,6 +66,13 @@ Add the following sections with their required fields:
 - Quantity, TradePrice, Proceeds, Taxes, IBCommission, NetCash
 - Buy/Sell, TransactionID
 
+> **TODO (recommended, not required):** also enable `TransactionType`, `Exchange`, and
+> `ListingExchange` in the query builder. The addon no longer *requires* them (the
+> Trades section is identified via `Buy/Sell`, verified against live Flex data), but:
+> - `Exchange` is the only clue for detecting IDEALFX currency conversions in the Trades section;
+> - `ListingExchange` maps trades to their real trading currency (SEHK→HKD, LSE→GBP, TSE→JPY) — without it, all transactions land in the statement base-currency account, which is wrong once you hold non-USD securities;
+> - `TransactionType` (`ExchTrade`) gives the classifier a second, explicit trade marker.
+
 </details>
 
 <details>
@@ -194,11 +201,12 @@ This addon requires the following permissions:
 | Permission | Purpose |
 |------------|---------|
 | accounts.getAll, accounts.create | Create and manage multi-currency accounts |
-| activities.import, activities.checkImport | Import transactions from CSV/API |
-| assets.searchTicker | Resolve ISIN symbols to Yahoo Finance tickers |
+| activities.getAll, activities.import | Read existing activities for deduplication; import transactions from CSV/API |
+| market-data.searchTicker | Resolve ISIN symbols to Yahoo Finance tickers |
 | ui.sidebar.addItem, ui.router.add | Display import wizard and settings pages |
 | secrets.get, secrets.set, secrets.delete | Securely store Flex Query credentials |
-| events.portfolio.onUpdateComplete | Trigger automatic Flex Query fetch |
+| events.onUpdateComplete | Trigger automatic Flex Query fetch |
+| network.request | Fetch the Flex statement over HTTPS (host brokered) |
 | logger.* | Log operations for debugging |
 
 ## Development

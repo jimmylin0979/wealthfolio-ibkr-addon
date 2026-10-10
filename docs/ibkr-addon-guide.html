@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IBKR Multi-Currency Import 使用手冊</title>
+<style>
+  :root {
+    --ink: #1c2733;
+    --muted: #5b6b7b;
+    --line: #dde4ea;
+    --card: #ffffff;
+    --bg: #f4f6f8;
+    --accent: #0f6bd7;
+    --accent-soft: #e8f1fc;
+    --warn-bg: #fdf6e7;
+    --warn-line: #e8cf94;
+    --danger-bg: #fdeeee;
+    --danger-line: #e6b3b3;
+    --ok-bg: #edf7ef;
+    --ok-line: #b5d8bc;
+    --code-bg: #f0f3f6;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    line-height: 1.75;
+    font-size: 16px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px 64px; }
+  header.page-head {
+    background: linear-gradient(135deg, #123a6d, #0f6bd7);
+    color: #fff;
+    border-radius: 12px;
+    padding: 32px 28px;
+    margin-bottom: 24px;
+  }
+  header.page-head h1 { margin: 0 0 8px; font-size: 1.7rem; line-height: 1.3; }
+  header.page-head p { margin: 4px 0; opacity: .92; font-size: .95rem; }
+  header.page-head code { background: rgba(255,255,255,.16); color: #fff; }
+  nav.toc {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+  nav.toc h2 { margin: 0 0 10px; font-size: 1.05rem; }
+  nav.toc ol { margin: 0; padding-left: 1.4em; }
+  nav.toc li { margin: 4px 0; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  nav.toc a:hover { text-decoration: underline; }
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 24px;
+  }
+  section.card > h2 {
+    margin: 0 0 16px;
+    font-size: 1.35rem;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--accent-soft);
+  }
+  h3 { font-size: 1.1rem; margin: 26px 0 10px; }
+  h4 { font-size: 1rem; margin: 20px 0 8px; }
+  p { margin: 10px 0; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: .86em;
+    word-break: break-word;
+  }
+  pre {
+    background: #10202f;
+    color: #dce7f2;
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: .82rem;
+    line-height: 1.55;
+  }
+  pre code { background: none; border: none; color: inherit; padding: 0; font-size: inherit; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 18px;
+    font-size: .9rem;
+  }
+  th, td {
+    border: 1px solid var(--line);
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--accent-soft); font-weight: 600; }
+  tr:nth-child(even) td { background: #fafbfc; }
+  .table-scroll { overflow-x: auto; }
+  .box {
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 14px 0;
+    border: 1px solid;
+    font-size: .93rem;
+  }
+  .box p { margin: 6px 0; }
+  .box .box-title { font-weight: 700; margin-bottom: 4px; }
+  .box.note { background: var(--accent-soft); border-color: #bcd4f0; }
+  .box.warn { background: var(--warn-bg); border-color: var(--warn-line); }
+  .box.danger { background: var(--danger-bg); border-color: var(--danger-line); }
+  .box.ok { background: var(--ok-bg); border-color: var(--ok-line); }
+  .step {
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 18px 0;
+    background: #fcfdfe;
+  }
+  .step h3 { margin-top: 0; }
+  .step .label {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 999px;
+    font-size: .75rem;
+    padding: 1px 10px;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  .kv { margin: 8px 0; }
+  .kv dt { font-weight: 700; color: var(--muted); font-size: .85rem; margin-top: 10px; }
+  .kv dd { margin: 2px 0 0 0; }
+  ul.tight li, ol.tight li { margin: 4px 0; }
+  .pill {
+    display: inline-block;
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0 10px;
+    font-size: .8rem;
+    color: var(--muted);
+    margin: 0 4px 4px 0;
+  }
+  footer.page-foot {
+    color: var(--muted);
+    font-size: .85rem;
+    text-align: center;
+    padding: 8px 16px 0;
+  }
+  a.top-link { color: var(--accent); text-decoration: none; font-size: .82rem; }
+  a.top-link:hover { text-decoration: underline; }
+  @media (max-width: 640px) {
+    body { font-size: 15px; }
+    section.card { padding: 18px 16px; }
+    header.page-head { padding: 24px 18px; }
+  }
+</style>
+</head>
+<body id="top">
+<div class="wrap">
+
+<header class="page-head">
+  <h1>IBKR Multi-Currency Import 使用手冊</h1>
+  <p>Wealthfolio 附加元件（addon id：<code>ibkr-multi-import</code>）完整操作指南</p>
+  <p>適用版本：addon SDK <code>3.9.0</code>，Wealthfolio 桌面版 <code>&ge; 3.6.2</code></p>
+</header>
+
+<nav class="toc" aria-label="目錄">
+  <h2>目錄</h2>
+  <ol>
+    <li><a href="#overview">概述</a></li>
+    <li><a href="#wizard">匯入嚮導逐步流程（5 個步驟）</a></li>
+    <li><a href="#flex-api">Flex Query API 細節</a></li>
+    <li><a href="#autofetch">Auto-fetch（自動同步）</a></li>
+    <li><a href="#host-apis">Host API 一覽表</a></li>
+    <li><a href="#troubleshooting">故障排除</a></li>
+  </ol>
+</nav>
+
+<!-- ==================== A. 概述 ==================== -->
+<section class="card" id="overview">
+  <h2>A. 概述</h2>
+  <p>
+    這個附加元件把 Interactive Brokers（IBKR）的活動報表（Activity Statement）匯入 Wealthfolio，
+    並自動處理多幣別情境。它有兩條資料來源路徑：
+  </p>
+  <ul class="tight">
+    <li><strong>CSV 手動上傳</strong>：一次上傳多份 IBKR 活動報表 CSV（最多 <code>MAX_FILES = 20</code> 個檔案，單檔上限 50MB）。</li>
+    <li><strong>Flex Query API 自動抓取</strong>：透過 IBKR Flex Web Service 兩階段 HTTP API 取得報表 CSV，可設定在投資組合更新後自動同步。</li>
+  </ul>
+  <p>匯入管線會做這些事：</p>
+  <ol class="tight">
+    <li>解析 IBKR 多區段 CSV（Trades、Cash Transactions、Transfers 等區段合併）。</li>
+    <li>偵測所有出現的幣別，為每個幣別建立（或重用）一個 Wealthfolio 帳戶，命名規則 <code>{group} - {ccy}</code>。</li>
+    <li>用 ISIN 或 symbol 透過 <code>ctx.api.market.searchTicker</code> 解析成 Yahoo Finance 相容 ticker。</li>
+    <li>把 IDEALFX 外匯轉換拆成 <code>TRANSFER_OUT</code> / <code>TRANSFER_IN</code> 成對交易。</li>
+    <li>用交易指紋（fingerprint，金額正規化到 <code>toFixed(6)</code>）去重，避免 CSV 與 Flex Query 重複匯入。</li>
+    <li>呼叫 <code>ctx.api.activities.import</code> 寫入，並回報每個帳戶的成功／失敗筆數。</li>
+  </ol>
+
+  <h3>主機需求與載入方式</h3>
+  <p>
+    元件是純 TypeScript / React 19 專案，經 Vite lib mode 打包成單一 ES bundle <code>dist/addon.js</code>，
+    由 Wealthfolio 主機依 <code>manifest.json</code> 載入。重點約束：
+  </p>
+  <ul class="tight">
+    <li>主機版本必須 <code>&ge; 3.6.2</code>（<code>minWealthfolioVersion</code>，安裝與啟用時硬性檢查）。</li>
+    <li><code>sdkVersion</code> 為 <code>3.9.0</code>（主機只做警告，不阻擋）。</li>
+    <li>SDK 3.9 已移除 <code>ctx.api.http</code>，Flex 請求改走主機代理的 <code>ctx.api.network.request</code>（僅限 HTTPS，且目的地必須在 manifest 的 <code>network.allowedHosts</code>，本元件只允許 <code>ndcdyn.interactivebrokers.com</code>）。</li>
+    <li>主機 <code>&ge; 3.6.0</code> 要求路由與側邊欄項目掛在 <code>/addon/&lt;ns&gt;</code> 或 <code>/addons/&lt;ns&gt;</code> 命名空間下（ns 即 addon id）。</li>
+  </ul>
+
+  <h3>入口（sidebar 與路由）</h3>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>側邊欄項目</th><th>路由</th><th>圖示 / 順序</th><th>用途</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>IBKR Import</td>
+        <td><code>/addons/ibkr-multi-import/activities/import</code></td>
+        <td><code>clipboard-text</code> / order 150</td>
+        <td>匯入嚮導（CSV 或 Flex Query）</td>
+      </tr>
+      <tr>
+        <td>IBKR Settings</td>
+        <td><code>/addons/ibkr-multi-import/settings/ibkr-flex</code></td>
+        <td><code>sliders</code> / order 151</td>
+        <td>Flex Query 設定頁（多組 Query 設定、auto-fetch 開關）</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p>
+    兩者都在 <code>src/addon.tsx</code> 的 <code>enable(ctx)</code> 中透過 <code>ctx.router.add</code> 與
+    <code>ctx.sidebar.addItem</code> 註冊。<code>enable()</code> 同時初始化 Flex HTTP client
+    （<code>setHttpClient(createNetworkHttpClient(ctx.api.network))</code>）並註冊
+    <code>portfolio.onUpdateComplete</code> 事件監聽（auto-fetch 用）。停用時透過回傳的
+    <code>disable()</code> 移除所有側邊欄項目與監聽器。
+  </p>
+  <p><a class="top-link" href="#top">回到目錄 ↑</a></p>
+</section>
+
+<!-- ==================== B. 嚮導 ==================== -->
+<section class="card" id="wizard">
+  <h2>B. 匯入嚮導逐步流程（5 個步驟）</h2>
+  <p>
+    嚮導頁面是 <code>src/pages/ibkr-multi-import-page.tsx</code>。畫面頂部的步驟指示器顯示 4 個標籤
+    （<code>Source &amp; Group</code>、<code>Currency Accounts</code>、<code>Transaction Preview</code>、<code>Import Results</code>），
+    其中 ticker 解析與交易預覽在同一個 UI 步驟內先後執行。本手冊依邏輯拆成 5 個步驟說明。
+  </p>
+
+  <!-- Step 1 -->
+  <div class="step">
+    <h3><span class="label">Step 1</span>來源選擇（Source &amp; Group）</h3>
+    <dl class="kv">
+      <dt>使用者操作</dt>
+      <dd>
+        輸入帳戶群組名稱（例如 <code>TFSA</code>、<code>Trading</code>，會成為帳戶名稱與 <code>group</code> 欄位的前綴），
+        選擇資料來源：<strong>Import from CSV Files</strong>（上傳檔案）或 <strong>Flex Query</strong>
+        （輸入 Token 與 Query ID，可勾選 remember credentials）。
+      </dd>
+      <dt>呼叫的 API</dt>
+      <dd>
+        <ul class="tight">
+          <li>Flex 路徑：<code>fetchFlexQuery({ token, queryId })</code>（<code>src/lib/flex-query-fetcher.ts</code>），
+              底層走 IBKR Flex Web Service 兩階段 API（詳見 <a href="#flex-api">C 節</a>），
+              傳輸層為 <code>ctx.api.network.request</code>。成功後若勾選記住憑證，先經
+              <code>validateFlexToken</code>（16 到 128 位英數字）與 <code>validateQueryId</code>（純數字，&le; 20 碼）驗證，
+              再寫入 <code>ctx.api.secrets.set("flex_token", ...)</code> 與 <code>ctx.api.secrets.set("flex_query_id", ...)</code>。
+              取得的 CSV 交給 <code>parseFlexQueryCSV</code>（內部重用 <code>extractTradesSection</code>，與手動 CSV 走完全相同的轉換路徑）。</li>
+          <li>CSV 路徑：<code>useMultiCsvParser.parseMultipleCsvFiles(files)</code>（<code>src/hooks/use-multi-csv-parser.ts</code>）。
+              先驗證：檔案數 &le; 20、單檔 &le; 50MB、副檔名 <code>.csv</code>、讀檔 30 秒逾時。
+              再用 <code>extractTradesSection</code>（<code>src/lib/ibkr-csv-splitter.ts</code>）把 IBKR 多區段 CSV
+              （同一檔內串接的 Trades、Dividends、Transfers 等區段）合併成列陣列，並正規化欄位名稱。</li>
+          <li>頁面載入時也會呼叫 <code>ctx.api.accounts.getAll()</code>（取得既有群組清單）與
+              <code>ctx.api.secrets.get</code>（讀回先前儲存的 Token / Query ID）。</li>
+        </ul>
+      </dd>
+      <dt>預期結果</dt>
+      <dd>
+        解析成功：得到 <code>CsvRowData[]</code> 列陣列，自動進入 Step 2。
+        解析失敗：畫面顯示可見錯誤（藍色訊息列顯示載入進度或 <code>Error: ...</code>，琥珀色框顯示逐檔解析錯誤）。
+        結構性失敗會直接 throw，例如 <code>No trades section found</code> 或 <code>No valid IBKR sections found</code>。
+      </dd>
+    </dl>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="step">
+    <h3><span class="label">Step 2</span>幣別帳戶預覽（Currency Accounts）</h3>
+    <dl class="kv">
+      <dt>使用者操作</dt>
+      <dd>檢視偵測到的幣別與各幣別交易筆數，必要時修改帳戶名稱。名稱重複、名稱空白、或與既有帳戶幣別不符時無法繼續。</dd>
+      <dt>呼叫的 API（皆為內部 lib 函式）</dt>
+      <dd>
+        <ul class="tight">
+          <li><code>detectCurrenciesFromIBKR(parsedData)</code>（<code>src/lib/currency-detector.ts</code>），兩層偵測：
+            <ol class="tight">
+              <li><strong>主路徑</strong>：只讀完整活動報表 Cash Report 中 <code>LevelOfDetail === "Currency"</code> 的彙總列，取其 <code>CurrencyPrimary</code>。</li>
+              <li><strong>Fallback</strong>（Flex Query CSV 永遠沒有 Cash Report 區段，一定走這條）：從交易列推導，
+                  來源有三個：<code>ListingExchange</code> 經 <code>EXCHANGE_TO_CURRENCY</code> 對應表映射的幣別（trades 與 TTAX/OFEE 稅費列）、
+                  IDEALFX 列的 Symbol 幣別對（例如 <code>HKD.USD</code> 拆出 <code>HKD</code> 與 <code>USD</code>，只套用於 IDEALFX，不會誤拆 <code>BRK.B</code> 這類一般點號 symbol）、
+                  以及符合大寫 ISO-3 格式的 <code>CurrencyPrimary</code>。</li>
+            </ol>
+          </li>
+          <li><code>generateAccountNames(groupName, currencies)</code>：產生 <code>{group} - {ccy}</code> 預設帳戶名。</li>
+          <li><code>countTransactionsByCurrency(parsedData)</code>：統計各幣別交易筆數（優先 <code>ListingExchange</code> 對應幣別，否則 <code>CurrencyPrimary</code>）。</li>
+          <li>與 Step 1 載入的既有帳戶比對（<code>name</code> + <code>currency</code> 都相符才算既有帳戶，將被重用）。</li>
+        </ul>
+      </dd>
+      <dt>預期結果</dt>
+      <dd>
+        每個幣別一列可編輯的帳戶預覽（幣別、交易筆數、帳戶名稱、狀態 New/Existing）。
+        頁面文案為 <code>Detected N currencies across all files</code>。
+        偵測到 0 個幣別時 <code>canProceed</code> 為 false，下一步按鈕被阻擋，這就是「Detected 0 currency」錯誤狀態。
+      </dd>
+    </dl>
+    <div class="box danger">
+      <p class="box-title">Troubleshooting：「Detected 0 currency」</p>
+      <p>可能原因與對症方法：</p>
+      <ul class="tight">
+        <li><strong>Flex CSV 沒有 Cash Report 區段</strong>：這是 Flex Query 的常態，fallback 機制就是為此而設。若 fallback 也抓不到，代表交易列缺少 <code>ListingExchange</code>、<code>CurrencyPrimary</code>，且沒有 IDEALFX 列。檢查 Flex Query 欄位設定（見 <a href="#flex-api">C 節</a>），確認有勾選 <code>ListingExchange</code> 與 <code>CurrencyPrimary</code>。</li>
+        <li><strong>Token 或 Query ID 錯誤</strong>：這種情況通常不會走到 Step 2，IBKR 會先回錯誤碼（<code>1015</code> token 無效、<code>1012</code> token 過期、<code>1014</code> query 無效），錯誤訊息會顯示在 Step 1。</li>
+        <li><strong>CSV 檔沒有 Trades 區段</strong>：<code>extractTradesSection</code> 會直接 throw（<code>No trades section found</code>），同樣停在 Step 1。</li>
+        <li><strong>檔案開頭有 BOM</strong>：區段偵測靠 <code>line.startsWith('"ClientAccountID"')</code> 比對表頭，BOM 字元會讓它失效。用「UTF-8 無 BOM」重新存檔。</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="step">
+    <h3><span class="label">Step 3</span>Ticker 解析（在 Transaction Preview 步驟內執行）</h3>
+    <dl class="kv">
+      <dt>使用者操作</dt>
+      <dd>在 Step 2 按下一步後等待，畫面顯示解析進度（current / total）。不需要輸入。</dd>
+      <dt>呼叫的 API</dt>
+      <dd>
+        <ul class="tight">
+          <li><code>refreshAndUpdateAccountPreviews</code>：先呼叫 <code>ctx.api.accounts.getAll()</code> 重新整理帳戶，更新預覽的 <code>existingAccount</code>。</li>
+          <li><code>processAndResolveData(parsedData, previews, ctx.api.market.searchTicker, onProgress)</code>（<code>src/lib/import-orchestrator.ts</code>），內部依序：
+            <ol class="tight">
+              <li><code>preprocessIBKRData</code>：列分類，標記 <code>_IBKR_TYPE</code>。</li>
+              <li><code>resolveTickersFromIBKR</code>（<code>src/lib/ticker-resolution-service.ts</code> + <code>ticker-resolver.ts</code>）：
+                  以 ISIN 或 symbol 查詢 <code>ctx.api.market.searchTicker</code>，批次間隔 <code>TICKER_RESOLUTION_DELAY_MS = 50ms</code> 避免 rate limit；
+                  結果快取在 localStorage，上限 <code>TICKER_CACHE_MAX_ENTRIES = 1000</code> 筆，單筆最長保存 30 天。</li>
+              <li><code>convertToActivityImports</code>：把列轉成 <code>ActivityImport</code>，回傳轉換錯誤清單（<code>ConversionError[]</code>，浮現而非靜默吞掉）。</li>
+              <li><code>splitFXConversions</code>：拆外匯轉換（見 Step 4）。</li>
+            </ol>
+          </li>
+        </ul>
+      </dd>
+      <dt>預期結果</dt>
+      <dd>
+        已解析 ticker 的交易清單；解析失敗的項目與轉換錯誤（例如缺日期的列）會顯示為警告，例如
+        <code>N transaction(s) failed to convert</code>、<code>N FX conversion(s) skipped</code>。
+        若 <code>processAndResolveData</code> 整體 throw，流程停在這裡（fatal）。
+      </dd>
+    </dl>
+  </div>
+
+  <!-- Step 4 -->
+  <div class="step">
+    <h3><span class="label">Step 4</span>交易預覽（Transaction Preview）</h3>
+    <dl class="kv">
+      <dt>使用者操作</dt>
+      <dd>檢視依幣別帳戶分組的交易預覽與各組摘要，確認後按 Start Import。</dd>
+      <dt>呼叫的 API</dt>
+      <dd>
+        <ul class="tight">
+          <li><code>splitFXConversions</code>（<code>src/lib/fx-transaction-splitter.ts</code>）：把 IDEALFX 外匯交易拆成
+              <code>TRANSFER_OUT</code>（來源幣別帳戶）+ <code>TRANSFER_IN</code>（目標幣別帳戶）成對活動；缺帳戶或格式無效的轉換列入 <code>SkippedFXConversion[]</code> 警告。</li>
+          <li><code>fetchExistingActivitiesForDedup</code>：對每個既有帳戶呼叫 <code>ctx.api.activities.getAll(accountId)</code>，取回現有活動。</li>
+          <li><code>deduplicateActivities</code>（<code>src/lib/activity-deduplicator.ts</code>）：以指紋比對新舊活動，
+              指紋格式為 <code>date|symbol|type|qty/amount 細節|fee|currency</code>，數值一律 <code>toFixed(6)</code> 正規化，
+              所以 CSV 與 Flex Query 匯入同一筆交易也能正確判重。重複的直接剔除。</li>
+          <li><code>groupActivitiesByCurrency</code> + <code>createTransactionGroups</code>：依幣別分組，
+              每組計算摘要（trades、dividends、deposits、withdrawals、fees、other）。沒有 <code>currency</code> 的活動會被跳過並記錄警告，不會靜默預設幣別。</li>
+        </ul>
+      </dd>
+      <dt>預期結果</dt>
+      <dd>
+        交易依幣別帳戶分組顯示，每組有類型摘要與筆數。去重後剩下的活動就是 Step 5 實際會匯入的內容。
+        部分帳戶讀取失敗時顯示警告（這些帳戶可能產生重複匯入）。
+      </dd>
+    </dl>
+  </div>
+
+  <!-- Step 5 -->
+  <div class="step">
+    <h3><span class="label">Step 5</span>匯入（Import Results）</h3>
+    <dl class="kv">
+      <dt>使用者操作</dt>
+      <dd>按 Start Import，等待進度（<code>Creating account: ...</code> / <code>Importing N transactions to ...</code>），完成後檢視結果，可按重置再跑一輪。</dd>
+      <dt>呼叫的 API</dt>
+      <dd>
+        <ul class="tight">
+          <li><code>ctx.api.accounts.create({ name, currency, group, accountType: "SECURITIES", isDefault: false, isActive: true })</code>：
+              為每個尚不存在的幣別帳戶建立帳戶；另外會掃描所有交易的實際幣別，預先補建缺少的幣別帳戶（避免匯入階段競態）。</li>
+          <li><code>ctx.api.activities.import(transactionsWithAccountId)</code>：逐幣別群組匯入，每筆活動先填上目標帳戶的 <code>accountId</code>。
+              去重已在 Step 4 完成，這裡直接寫入。</li>
+          <li><code>ctx.api.activities.checkImport</code>：在 <code>manifest.json</code> 中宣告（<code>activities:checkImport</code> 權限），
+              供匯入前檢查使用；目前程式碼的匯入路徑直接呼叫 <code>activities.import</code>，判重由 addon 內部指紋機制負責。</li>
+        </ul>
+      </dd>
+      <dt>預期結果</dt>
+      <dd>
+        每個帳戶一列結果：<code>success</code>（成功筆數）、<code>failed</code>（失敗筆數）、<code>errors</code>（逐筆錯誤訊息，
+        例如某幣別沒有可用帳戶、或 import 呼叫失敗）。部分成功也會如實呈現。
+        完成後可到 Wealthfolio 的 Accounts / Activities 頁面驗證。
+      </dd>
+    </dl>
+  </div>
+  <p><a class="top-link" href="#top">回到目錄 ↑</a></p>
+</section>
+
+<!-- ==================== C. Flex API ==================== -->
+<section class="card" id="flex-api">
+  <h2>C. Flex Query API 細節</h2>
+  <p>
+    實作在 <code>src/lib/flex-query-fetcher.ts</code>。IBKR Flex Web Service 是兩階段 HTTP API（<code>v=3</code>），
+    Base URL 為 <code>https://ndcdyn.interactivebrokers.com/AccountManagement/FlexWebService</code>。
+  </p>
+
+  <h3>兩階段交換流程</h3>
+<pre><code>Addon                          IBKR Flex Web Service
+  |                                      |
+  |  (1) GET /SendRequest                |
+  |      ?t=TOKEN&amp;q=QUERY_ID&amp;v=3         |
+  |-------------------------------------&gt;|
+  |        XML: &lt;Status&gt;Success          |
+  |        &lt;ReferenceCode&gt;xxx            |
+  |        &lt;Url&gt;(optional)               |
+  |&lt;-------------------------------------|
+  |                                      |
+  |  (2) GET /GetStatement               |
+  |      ?t=TOKEN&amp;q=REFERENCE_CODE&amp;v=3   |
+  |-------------------------------------&gt;|
+  |   ErrorCode 1003/1019 (生成中)        |
+  |   --&gt; 等 2s 再試, backoff x1.5        |
+  |       上限 30s, 絕對逾時 2 分鐘        |
+  |&lt;-------------------------------------|
+  |   ErrorCode 1018 (rate limit) --&gt; 同上重試
+  |   其他 ErrorCode --&gt; 立即失敗 (fail fast)
+  |                                      |
+  |   成功: 回應本體即為 CSV              |
+  |      (格式依 Flex Query 設定)         |
+  |&lt;-------------------------------------|</code></pre>
+
+  <h3>階段一：SendRequest</h3>
+  <pre><code>GET https://ndcdyn.interactivebrokers.com/AccountManagement/FlexWebService/SendRequest?t=TOKEN&amp;q=QUERY_ID&amp;v=3</code></pre>
+  <p>
+    回應是 XML，<code>parseFlexResponse</code> 會抽出 <code>&lt;Status&gt;</code>、<code>&lt;ReferenceCode&gt;</code>、
+    <code>&lt;Url&gt;</code>、<code>&lt;ErrorCode&gt;</code>、<code>&lt;ErrorMessage&gt;</code>。
+    <code>Status === "Success"</code> 且有 <code>ReferenceCode</code> 才算成功。
+    XML 字串會經 <code>sanitizeXmlString</code> 清除標籤與限制長度；<code>&lt;Url&gt;</code> 只有在是 HTTPS 且位於
+    <code>*.interactivebrokers.com</code> 或 <code>*.ibkr.com</code> 時才接受。
+  </p>
+
+  <h3>階段二：GetStatement（輪詢）</h3>
+  <pre><code>GET https://ndcdyn.interactivebrokers.com/AccountManagement/FlexWebService/GetStatement?t=TOKEN&amp;q=REFERENCE_CODE&amp;v=3</code></pre>
+  <p><code>fetchFlexQuery</code> 的輪詢參數（預設值來自 <code>src/lib/constants.ts</code>）：</p>
+  <ul class="tight">
+    <li>可重試錯誤碼：<code>1003</code>、<code>1019</code>（報表生成中）與 <code>1018</code>（rate limit）。</li>
+    <li>其他錯誤碼一律 fail fast，不重試。</li>
+    <li>初始延遲 <code>FLEX_QUERY_INITIAL_DELAY_MS = 2000</code>（2 秒），每次乘 1.5，上限 <code>FLEX_QUERY_MAX_DELAY_MS = 30000</code>（30 秒）。</li>
+    <li>最多重試 <code>maxRetries = 10</code> 次，另有絕對逾時 <code>FLEX_QUERY_ABSOLUTE_TIMEOUT_MS = 120000</code>（2 分鐘）防止無限等待。</li>
+    <li>成功時回應本體就是 CSV 字串（因為 Flex Query 的 Format 設為 CSV）。</li>
+  </ul>
+
+  <h3>錯誤碼對照表</h3>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>ErrorCode</th><th>意義（程式碼內 <code>FLEX_ERROR_CODES</code>）</th><th>Addon 行為</th></tr></thead>
+    <tbody>
+      <tr><td><code>1001</code></td><td>Statement generation unavailable; retry shortly</td><td>fail fast</td></tr>
+      <tr><td><code>1003</code></td><td>Statement generation in progress; wait and try again</td><td><strong>重試</strong>（backoff 2s&rarr;30s）</td></tr>
+      <tr><td><code>1004</code></td><td>Statement ready for download</td><td>成功訊號</td></tr>
+      <tr><td><code>1005</code></td><td>Statement failed to generate; try again</td><td>fail fast</td></tr>
+      <tr><td><code>1006</code></td><td>Statement is too large; try with a smaller date range</td><td>fail fast（縮小日期範圍）</td></tr>
+      <tr><td><code>1007</code></td><td>Statement request invalid</td><td>fail fast</td></tr>
+      <tr><td><code>1010</code></td><td>Server error; retry later</td><td>fail fast</td></tr>
+      <tr><td><code>1011</code></td><td>Statement ID not found</td><td>fail fast</td></tr>
+      <tr><td><code>1012</code></td><td>Token has expired</td><td>fail fast（提示到 IBKR Client Portal 重新產生 token）</td></tr>
+      <tr><td><code>1013</code></td><td>IP address restriction violated</td><td>fail fast（提示更新 IP 限制）</td></tr>
+      <tr><td><code>1014</code></td><td>Query is invalid</td><td>fail fast（檢查 Query ID）</td></tr>
+      <tr><td><code>1015</code></td><td>Token is invalid</td><td>fail fast（檢查 Flex token）</td></tr>
+      <tr><td><code>1016</code></td><td>Token missing permissions</td><td>fail fast</td></tr>
+      <tr><td><code>1017</code></td><td>Statement date range invalid</td><td>fail fast</td></tr>
+      <tr><td><code>1018</code></td><td>Rate limit exceeded</td><td><strong>重試</strong>（同 backoff）</td></tr>
+      <tr><td><code>1019</code></td><td>Statement pending generation</td><td><strong>重試</strong>（同 backoff）</td></tr>
+      <tr><td><code>1020</code></td><td>Invalid token or request（IBKR 文件）</td><td>fail fast</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>
+    另外 <code>testFlexConnection</code>（設定頁的 Test 按鈕）只送 SendRequest 驗證憑證，
+    並把 <code>1015</code>/<code>1012</code>/<code>1014</code>/<code>1013</code> 轉成友善訊息。
+  </p>
+
+  <h3>傳輸層與安全注意事項</h3>
+  <div class="box danger">
+    <p class="box-title">安全：token 在 URL 裡</p>
+    <p>
+      IBKR 的 API 設計就是把 token 放在 URL query 參數 <code>?t=TOKEN</code>（不是 Authorization header）。
+      因此<strong>絕對不要記錄完整請求 URL</strong>，token 會直接出現在 log 裡。addon 內部只 log 進度訊息與 ReferenceCode。
+    </p>
+  </div>
+  <ul class="tight">
+    <li>所有請求經主機代理：<code>createNetworkHttpClient(ctx.api.network)</code>（<code>src/lib/network-http-client.ts</code>）把 SDK 3.9 的
+        <code>network.request({ url, method, headers, body, timeoutSecs })</code> 包裝成 fetcher 的 <code>HttpClient</code> 介面。</li>
+    <li>只允許 HTTPS，且目的地必須在 manifest <code>network.allowedHosts</code>：<code>["ndcdyn.interactivebrokers.com"]</code>。安裝時使用者需同意 network 權限，實際請求才會放行。</li>
+    <li>逾時：預設 <code>timeoutSecs = 60</code>（IBKR 生成報表可能超過 10 秒），主機上限 120 秒。</li>
+    <li>請求帶 <code>User-Agent: Wealthfolio/1.0</code>。</li>
+    <li>Token 驗證規則：16 到 128 位、僅英數字（<code>MIN_TOKEN_LENGTH</code> / <code>MAX_TOKEN_LENGTH</code>）。Query ID：純數字、最長 20 碼。</li>
+  </ul>
+
+  <h3>在 IBKR 建立 Activity Flex Query（依本 repo README）</h3>
+  <ol class="tight">
+    <li>登入 IBKR Account Management，前往 <strong>Reports &gt; Flex Queries &gt; Activity Flex Query</strong>，按 <strong>Create</strong>（或 <strong>+</strong>）。</li>
+    <li>加入下列區段與欄位。</li>
+  </ol>
+
+  <h4>必要區段</h4>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>區段</th><th>Options</th><th>必要欄位</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Trades</strong>（必要）</td>
+        <td>Execution</td>
+        <td>ClientAccountID, CurrencyPrimary, FXRateToBase, AssetClass, Symbol, Description, ISIN, TradeID, DateTime, TradeDate, SettleDateTarget, Quantity, TradePrice, Proceeds, Taxes, IBCommission, NetCash, Buy/Sell, TransactionID</td>
+      </tr>
+      <tr>
+        <td><strong>Cash Transactions</strong>（必要）</td>
+        <td>Dividends, Withholding Tax, 871(m) Withholding, Broker Fees, Deposits &amp; Withdrawals, Detail</td>
+        <td>ClientAccountID, CurrencyPrimary, FXRateToBase, AssetClass, Symbol, Description, ISIN, Date/Time, SettleDate, Amount, Type, TransactionID</td>
+      </tr>
+      <tr>
+        <td><strong>Transfers</strong>（必要）</td>
+        <td>Transfer</td>
+        <td>ClientAccountID, CurrencyPrimary, FXRateToBase, AssetClass, Symbol, Description, ISIN, Date, DateTime, SettleDate, Type, Direction, Quantity, TransferPrice, TransactionID</td>
+      </tr>
+      <tr>
+        <td><strong>Statement of Funds</strong>（選用，FX 轉換用）</td>
+        <td>Base Currency Summary</td>
+        <td>ClientAccountID, CurrencyPrimary, FXRateToBase, Symbol, Description, ISIN, ReportDate, Date, SettleDate, ActivityCode, ActivityDescription, Debit, Credit, Amount, TransactionID</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box warn">
+    <p class="box-title">注意：Transfers 欄位</p>
+    <p>
+      README 的 Transfers 欄位清單漏了 <code>TransferCompany</code> 與 <code>CashTransfer</code>，但解析器需要這兩個表頭。
+      缺了它們，transfer 列會被分類成 unknown 而靜默丟棄。請在 Flex Query 中一併勾選。
+    </p>
+  </div>
+
+  <h4>Delivery 設定</h4>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>設定</th><th>值</th></tr></thead>
+    <tbody>
+      <tr><td>Format</td><td>CSV</td></tr>
+      <tr><td>Include header and trailer records?</td><td>No</td></tr>
+      <tr><td>Include column headers?</td><td>Yes</td></tr>
+      <tr><td>Display single column header row?</td><td>No</td></tr>
+      <tr><td>Include section code and line descriptor?</td><td>No</td></tr>
+      <tr><td>Period</td><td>Last 365 Calendar Days</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>General 設定</h4>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>設定</th><th>值</th></tr></thead>
+    <tbody>
+      <tr><td>Date Format</td><td><code>yyyy-MM-dd</code></td></tr>
+      <tr><td>Time Format</td><td><code>HHmmss</code></td></tr>
+      <tr><td>Date/Time Separator</td><td><code>' '</code>（單一空格）</td></tr>
+      <tr><td>Include Canceled Trades?</td><td>No</td></tr>
+      <tr><td>Include Currency Rates?</td><td>No</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>取得 Token 與 Query ID</h4>
+  <ul class="tight">
+    <li><strong>Flex Web Service Token</strong>：Account Management &gt; <strong>Reports &gt; Flex Queries</strong>，頁面底部 <strong>Flex Web Service</strong> 區塊，按 <strong>Generate Token</strong>（或檢視既有 token），複製後妥善保存。全部設定共用同一把 token。</li>
+    <li><strong>Query ID</strong>：顯示在每個 Flex Query 名稱旁邊（查詢清單頂部），是純數字。每建一個 query 就有一個獨立的 Query ID。</li>
+    <li>在 Wealthfolio 中設定：<strong>IBKR Settings</strong> 頁 &gt; Add Configuration &gt; 輸入 Query ID、Token、名稱（例如 "Main Account"），並可開啟 <strong>Auto-fetch on portfolio update</strong>。</li>
+  </ul>
+  <p><a class="top-link" href="#top">回到目錄 ↑</a></p>
+</section>
+
+<!-- ==================== D. Auto-fetch ==================== -->
+<section class="card" id="autofetch">
+  <h2>D. Auto-fetch（自動同步）</h2>
+  <p>
+    啟用 auto-fetch 的 Flex Query 設定會在投資組合更新完成後自動抓資料並匯入，全程無需開嚮導。
+    整條鏈路在 <code>src/addon.tsx</code>（<code>performAutoFetch</code>）與 <code>src/lib/auto-fetch-processor.ts</code>（<code>processFlexQueryConfig</code>）。
+  </p>
+
+  <h3>觸發與併發保護</h3>
+  <ol class="tight">
+    <li><strong>事件</strong>：<code>ctx.api.events.portfolio.onUpdateComplete(debouncedAutoFetch)</code>。註冊採 fire-and-forget，失敗只記 warning，不影響 addon 其他功能。</li>
+    <li><strong>Debounce</strong>：<code>AUTO_FETCH_DEBOUNCE_MS = 5000</code>。5 秒內的多個更新事件合併成一次抓取。</li>
+    <li><strong>AsyncLock</strong>：<code>autoFetchLock.tryAcquire()</code> 非阻塞取鎖，已有抓取進行中就直接跳過。</li>
+    <li><strong>Token 檢查</strong>：<code>loadToken(ctx.api.secrets)</code>（key <code>flex_token</code>），沒有 token 就跳過。</li>
+    <li><strong>設定載入</strong>：<code>loadConfigsSafe(ctx.api.secrets)</code>（key <code>flex_query_configs</code>，JSON 陣列），篩出 <code>autoFetchEnabled === true</code> 的設定。讀取失敗會 log error（不會跟「沒有設定」混淆）。</li>
+    <li><strong>Per-config cooldown</strong>：<code>isConfigInCooldown(config.lastFetchTime)</code>，冷卻時間 <code>FETCH_COOLDOWN_MS = 6 小時</code>（IBKR 活動報表每日更新一次，6 小時已足夠）。冷卻中則跳過該設定。</li>
+    <li><strong>TOCTOU 再檢查</strong>：真正抓取前重新 <code>loadConfigsSafe</code> 讀最新設定、重跑 cooldown 檢查，然後用 <code>updateConfigStatus(secrets, id, createPendingStatus())</code> 先「認領」這個設定（寫入 <code>lastFetchTime</code>），避免多個觸發來源重複抓同一個設定。認領失敗就跳過。</li>
+  </ol>
+
+  <h3>單一設定的處理流程（processFlexQueryConfig）</h3>
+  <ol class="tight">
+    <li><code>fetchAndParseFlexQuery</code>：<code>fetchFlexQuery</code>（兩階段 API，同 C 節）取得 CSV，<code>parseFlexQueryCSV</code> 解析成列。0 列時直接記成功狀態並顯示「No new transactions found」。</li>
+    <li><code>detectCurrenciesFromIBKR(rows)</code> 偵測幣別（同 Step 2 的兩層邏輯）。</li>
+    <li><code>getOrCreateAccountsForGroup(accountGroup, currencies)</code>：<code>ctx.api.accounts.getAll()</code> 找同名同幣別帳戶，缺的用 <code>ctx.api.accounts.create</code>（<code>SECURITIES</code> 型別）補建。</li>
+    <li><code>processAndResolveData(rows, previews, ctx.api.market.searchTicker)</code>：preprocess、ticker 解析、轉換、FX 拆分（與嚮導共用同一條管線）。轉換錯誤寫入 warning log（前 5 則摘要）。</li>
+    <li><code>importActivitiesToAccounts</code>：逐幣別帳戶，先用 <code>createActivityFingerprintGetter(activitiesApi)</code> 取回該帳戶既有活動指紋，
+        <code>deduplicateActivities</code> 剔除重複，剩下的呼叫 <code>ctx.api.activities.import</code>。統計 imported / skipped / failed 與失敗帳戶清單。</li>
+    <li><code>updateConfigStatus(ctx.api.secrets, config.id, createSuccessStatus())</code>：把最後抓取時間與狀態寫回 secrets（<code>flex-config-storage.ts</code>，所有寫入都經 <code>loadConfigsOrThrow</code> + <code>withLock</code>，讀取錯誤會 throw 而不是回傳空陣列，避免把既有設定整組洗掉）。</li>
+  </ol>
+
+  <h3>預期結果</h3>
+  <ul class="tight">
+    <li><strong>成功</strong>：toast（透過主機注入的 <code>window.__wealthfolio_toast__</code>，sonner 介面）顯示 <code>IBKR: {config name}</code>，
+        描述為 <code>formatImportResultMessage(imported, skipped, failed)</code> 的匯入／跳過／失敗筆數。有失敗帳戶時改用 warning toast。</li>
+    <li><strong>失敗</strong>：error toast，訊息經 <code>enrichIBKRErrorMessage</code> 加上可操作指引（例如 token 無效該去哪裡重產生）；
+        錯誤狀態經 <code>createErrorStatus</code> 存回設定（<code>lastFetchError</code>），設定頁可看到。</li>
+    <li>整個過程的詳細進度寫入 <code>ctx.api.logger</code>（trace / info / warn / error）。</li>
+  </ul>
+  <p><a class="top-link" href="#top">回到目錄 ↑</a></p>
+</section>
+
+<!-- ==================== E. Host API ==================== -->
+<section class="card" id="host-apis">
+  <h2>E. Host API 一覽表</h2>
+  <p>
+    所有主機存取都透過 <code>ctx.api.*</code>（optional chaining，主機未提供時優雅降級）。
+    權限在 <code>manifest.json</code> 的 <code>permissions</code> 宣告，安裝時需使用者同意。
+    注意權限 key 的類別名稱要精確：ticker 搜尋是 <code>market-data:searchTicker</code>（不是 <code>assets:</code>），
+    事件是 <code>events:onUpdateComplete</code>（不是 <code>portfolio.onUpdateComplete</code>）。
+  </p>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>API</th><th>用途</th><th>manifest 權限 key</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>ctx.api.accounts.getAll()</code></td>
+        <td>載入既有帳戶：群組清單、帳戶重用比對、去重前重新整理</td>
+        <td><code>accounts:getAll</code></td>
+      </tr>
+      <tr>
+        <td><code>ctx.api.accounts.create({...})</code></td>
+        <td>為每個幣別建立 <code>SECURITIES</code> 型別帳戶（<code>isDefault: false</code>, <code>isActive: true</code>）</td>
+        <td><code>accounts:create</code></td>
+      </tr>
+      <tr>
+        <td><code>ctx.api.activities.import(activities)</code></td>
+        <td>批次匯入交易（嚮導 Step 5 與 auto-fetch 的唯一寫入路徑）</td>
+        <td><code>activities:import</code></td>
+      </tr>
+      <tr>
+        <td><code>ctx.api.activities.checkImport</code></td>
+        <td>manifest 中宣告的匯入前檢查；目前程式碼的判重由 addon 內部指紋機制完成，匯入直接走 <code>activities.import</code></td>
+        <td><code>activities:checkImport</code></td>
+      </tr>
+      <tr>
+        <td><code>ctx.api.activities.getAll(accountId)</code></td>
+        <td>讀取帳戶既有活動，建立去重指紋（屬 activities 權限類別）</td>
+        <td><code>activities</code> 類別</td>
+      </tr>
+      <tr>
+        <td><code>ctx.api.market.searchTicker(query)</code></td>
+        <td>ISIN / symbol 解析成 Yahoo Finance 相容 ticker（回傳 <code>SymbolSearchResult[]</code>）</td>
+        <td><code>market-data:searchTicker</code></td>
+      </tr>
+      <tr>
+        <td><code>ctx.api.secrets.get / set / delete</code></td>
+        <td>Flex 憑證與設定儲存（主機 keyring）。Keys：<code>flex_token</code>、<code>flex_query_id</code>（嚮導）、<code>flex_query_configs</code>（設定頁 JSON）</td>
+        <td><code>secrets:get</code> / <code>secrets:set</code> / <code>secrets:delete</code></td>
+      </tr>
+      <tr>
+        <td><code>ctx.api.events.portfolio.onUpdateComplete(cb)</code></td>
+        <td>投資組合更新完成事件，觸發 auto-fetch（回傳 unlisten 函式，disable 時清理）</td>
+        <td><code>events:onUpdateComplete</code></td>
+      </tr>
+      <tr>
+        <td><code>ctx.api.network.request({ url, method, headers, body, timeoutSecs })</code></td>
+        <td>主機代理的 HTTPS 請求，Flex Web Service 的唯一傳輸層（SDK 3.9 已移除 <code>ctx.api.http</code>）。需搭配 <code>network.allowedHosts: ["ndcdyn.interactivebrokers.com"]</code></td>
+        <td><code>network:request</code></td>
+      </tr>
+      <tr>
+        <td><code>ctx.api.logger.info / warn / error / trace</code></td>
+        <td>操作日誌（auto-fetch 進度、匯入結果、錯誤）。絕不記錄 token 或完整請求 URL</td>
+        <td><code>logger:info</code> / <code>logger:warn</code> / <code>logger:error</code> / <code>logger:trace</code></td>
+      </tr>
+      <tr>
+        <td><code>ctx.sidebar.addItem({ id, label, icon, route, order })</code></td>
+        <td>註冊 IBKR Import（order 150）與 IBKR Settings（order 151）側邊欄項目，回傳 handle 供 disable 時 <code>remove()</code></td>
+        <td><code>ui:sidebar.addItem</code></td>
+      </tr>
+      <tr>
+        <td><code>ctx.router.add({ path, component, title })</code></td>
+        <td>註冊兩個頁面路由（必須在 <code>/addons/ibkr-multi-import/*</code> 命名空間下，主機 <code>&ge; 3.6.0</code> 的硬性要求）</td>
+        <td><code>ui:router.add</code></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="box note">
+    <p class="box-title">其他主機耦合（非 ctx.api）</p>
+    <p>
+      <code>window.__wealthfolio_toast__</code>：主機注入的 sonner toast 函式，auto-fetch 用來顯示結果（拿不到就靜默跳過，純裝飾性）。
+      manifest 中<strong>不要</strong>加 <code>contributes</code> 欄位，那會讓 addon 變成延遲載入，boot 時的 auto-fetch 註冊就會失效。
+    </p>
+  </div>
+  <p><a class="top-link" href="#top">回到目錄 ↑</a></p>
+</section>
+
+<!-- ==================== F. 故障排除 ==================== -->
+<section class="card" id="troubleshooting">
+  <h2>F. 故障排除</h2>
+
+  <h3>1. 「Detected 0 currency across all files」（Step 2 被阻擋）</h3>
+  <div class="box danger">
+    <p class="box-title">原因與修法</p>
+    <ul class="tight">
+      <li><strong>Trades 區段缺 TransactionType / Exchange（實測最常見）</strong>：README 的必要欄位清單沒有列這兩欄，照著設定就會讓區段無法被辨識為 Trades，<code>extractTradesSection</code> 拋出 <code>No trades section found in IBKR CSV</code>，解析結果為 0 列。修正版已改用 <code>Buy/Sell</code> 單獨判定並容忍缺少 transaction type，但仍建議在查詢中勾選 <code>TransactionType</code>、<code>Exchange</code>、<code>ListingExchange</code>（見 README 的 TODO）。</li>
+      <li><strong>Flex CSV 沒有 Cash Report</strong>：Flex Query CSV 本來就不含 <code>LevelOfDetail="Currency"</code> 彙總列，主路徑抓不到是預期行為，fallback 會從交易列推導幣別。若 fallback 也是 0，代表交易列同時缺少 <code>ListingExchange</code>、有效的 <code>CurrencyPrimary</code>（大寫 ISO-3），且沒有 IDEALFX 列。</li>
+      <li><strong>Token / Query ID 錯誤</strong>：會在 Step 1 就以 IBKR 錯誤碼失敗（<code>1015</code> token 無效、<code>1012</code> token 過期、<code>1014</code> query 無效、<code>1020</code> token 或請求無效），不會走到幣別偵測。用 IBKR Settings 頁的 Test 按鈕驗證。</li>
+      <li><strong>格式不是 CSV</strong>：若 Flex Query 的 Delivery 格式設成 XML，回應無法當 CSV 解析，解析錯誤會直接顯示在載入訊息中。</li>
+      <li><strong>BOM</strong>：見下方第 4 項。</li>
+    </ul>
+  </div>
+
+  <h3>1b. 「0 transactions ready to import」（Step 3 预览為 0）</h3>
+  <div class="box danger">
+    <p class="box-title">原因與修法</p>
+    <ul class="tight">
+      <li><strong>日期欄位取錯（實測根因）</strong>：Flex CSV 完全沒有 <code>Date</code> 與 <code>ReportDate</code> 欄位，Trades 用 <code>TradeDate</code>、Cash Transactions 用 <code>Date/Time</code>（值如 <code>2026-06-30 202000</code>）。若轉換時只讀 <code>row.Date || row.ReportDate</code>，每一列都會被判定為「Missing date field」而丟棄，預覽就會是 0 筆。轉換前必須 fallback 到 <code>TradeDate</code>，並把 <code>Date/Time</code> 尾端的時間剝掉，否則匯入主機時日期格式不合法。</li>
+      <li><strong>全部被判定為重複</strong>：若先前已匯入過相同交易，指紋去重會全部略過。確認目標帳戶是否已有相同活動。</li>
+    </ul>
+  </div>
+
+  <h3>1c. 匯入後金額或筆數異常</h3>
+  <div class="box warn">
+    <p class="box-title">Statement of Funds 重複計算</p>
+    <p>
+      Flex 回應的第 1 個區段是 Statement of Funds，內容是 trades / dividends / deposits 的現金基礎彙總，
+      與其他區段的交易列重複。完整 Activity Statement 會在這些列標上 <code>LevelOfDetail</code> 讓預處理器略過，
+      但 Flex 的 Statement of Funds <strong>沒有</strong>這個欄位，因此修正版在區段分割階段就整段丟棄（辨識特徵：
+      <code>ActivityCode</code> + <code>ActivityDescription</code> + <code>Debit</code>/<code>Credit</code>）。
+      實測未排除時 6 筆股息會變成 12 筆。
+    </p>
+  </div>
+
+  <h3>1d. 「Add-on permission denied ... tried to use 'X' without permission」</h3>
+  <div class="box danger">
+    <p class="box-title">原因與修法</p>
+    <p>
+      主機的 sandbox 會逐一比對 manifest 宣告的權限，<strong>任何未宣告的 <code>ctx.api.*</code> 呼叫都會被攔截並彈出這個 toast</strong>。
+      允許清單由 <code>permissions[].functions[].name</code> 組成，比對時用 <code>category:name</code>（<code>ui</code>、<code>logger</code>、
+      <code>query</code>、<code>toast</code> 為 baseline，不需宣告）。
+    </p>
+    <ul class="tight">
+      <li><strong>namespace 名稱不等於 category 名稱</strong>：<code>ctx.api.market.searchTicker</code> 的 category 是 <code>market-data</code>；
+          <code>ctx.api.events.portfolio.onUpdateComplete</code> 的 category 是 <code>events</code>（function 為 <code>onUpdateComplete</code>）。
+          照 namespace 名寫會被判定為未宣告。</li>
+      <li>本 addon 需要的 activities 權限是 <code>getAll</code> 與 <code>import</code>：<code>getAll</code> 供指紋去重讀取既有活動
+          （<code>import-orchestrator.ts</code>、<code>auto-fetch-helpers.ts</code>），漏掉會讓去重步驟直接失敗。</li>
+      <li>修改 manifest 後：dev 模式需重載 addon（主機每次載入都會重新註冊 manifest）；以 ZIP 安裝則需重新安裝／更新。</li>
+      <li><strong>在哪裡看權限</strong>：設定 → Addons → 該 addon 卡片上的「眼睛」圖示。注意它在桌面寬度下預設為透明
+          （<code>sm:opacity-0 group-hover:opacity-100</code>），必須把滑鼠移過卡片才會顯示。</li>
+    </ul>
+  </div>
+
+  <h3>2. 開發模式：側邊欄空白或主機 404</h3>
+  <p>
+    Wealthfolio 3.7+ 的 addon 開發協定要求 dev server 提供 <code>/runtime-package</code>、帶 generation 的 <code>/status</code>、
+    以及 <code>/addon-updates</code> SSE 端點，缺了主機直接 404。請用 <code>pnpm dev:full</code>
+    （vite watch build + <code>dev-server.mjs</code> 在 port 3001，已實作完整協定），不要只用 <code>pnpm dev</code>。
+    另外，路由若沒掛在 <code>/addons/ibkr-multi-import/*</code> 命名空間下，<code>enable()</code> 會 throw，症狀就是側邊欄空白。
+  </p>
+
+  <h3>3. Token 跟 Query ID 搞混</h3>
+  <p>
+    這是兩個不同的東西：<strong>Flex Web Service Token</strong> 是整組 API 的共用憑證（英數字串，16 到 128 位，放在 <code>?t=</code>），
+    在 Reports &gt; Flex Queries 頁面底部的 Flex Web Service 區塊產生；
+    <strong>Query ID</strong> 是單一 Flex Query 的數字編號（放在 <code>?q=</code>），顯示在查詢名稱旁邊。
+    打錯 token 得到 <code>1015</code>（或過期的 <code>1012</code>），打錯 Query ID 得到 <code>1014</code>。
+  </p>
+
+  <h3>4. BOM 讓區段偵測失效</h3>
+  <p>
+    <code>ibkr-csv-splitter.ts</code> 靠 <code>line.startsWith('"ClientAccountID"')</code> 比對表頭來偵測區段，
+    檔案開頭的 UTF-8 BOM 字元會讓第一行比對失敗（已知限制）。把 CSV 重存為「UTF-8（無 BOM）」即可。
+  </p>
+
+  <h3>5. Transfers 被靜默跳過</h3>
+  <p>
+    README 的 Transfers 必要欄位清單漏了 <code>TransferCompany</code> 與 <code>CashTransfer</code>，但解析器需要這兩個表頭；
+    缺少時 transfer 列會被分類為 unknown 並直接丟棄，沒有任何錯誤訊息。請在 Flex Query 的 Transfers 區段把這兩個欄位也勾選。
+  </p>
+
+  <h3>6. 開發者備註</h3>
+  <ul class="tight">
+    <li><code>pnpm type-check</code>（即 <code>tsc --noEmit</code>）目前會失敗（73 個錯誤，全在測試檔），CI 只跑 test + build，不跑 type-check。</li>
+    <li>除錯 log：在瀏覽器 localStorage 設 <code>IBKR_DEBUG = "true"</code> 可開啟 <code>debug-logger.ts</code> 的詳細輸出。</li>
+    <li>測試：<code>pnpm test</code>（vitest，1064 個測試，lib 覆蓋率約 90.8%）。注意 <code>csv-flexquery-deduplication.test.ts</code> 的 fixture 在 repo 外部，該測試會靜默 no-op 但回報通過。</li>
+    <li>發布：<code>pnpm bundle</code> 產出 ZIP（clean + build + zip），無 npm publish。</li>
+  </ul>
+  <p><a class="top-link" href="#top">回到目錄 ↑</a></p>
+</section>
+
+<footer class="page-foot">
+  <p>
+    本文件由 repo 原始碼整理產生（source of truth：<code>ibkr-wealthfolio-addon</code>，SDK 3.9 遷移後，commit <code>db1b214</code> 時期）。
+    參照檔案：<code>README.md</code>、<code>manifest.json</code>、<code>src/addon.tsx</code>、<code>src/pages/ibkr-multi-import-page.tsx</code>、
+    <code>src/lib/flex-query-fetcher.ts</code>、<code>src/lib/currency-detector.ts</code>、<code>src/lib/auto-fetch-processor.ts</code>、
+    <code>src/lib/import-orchestrator.ts</code>、<code>src/lib/constants.ts</code>、<code>src/lib/network-http-client.ts</code>。
+    產生日期：2026-10-10。
+  </p>
+</footer>
+
+</div>
+</body>
+</html>
